@@ -25,6 +25,8 @@
         }
     },
     "scripts": {
+        "config:export": "php bin/config.php export",
+        "config:import": "php bin/config.php import",
         "serve": [
             "Composer\\Config::disableProcessTimeout",
             "php -S localhost:8000 -t public"
