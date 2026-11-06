@@ -3,7 +3,6 @@
 .phpunit.cache/
 /storage/logs/*
 /storage/*.sqlite
-!/storage/database.sqlite
 /storage/*.sqlite-*
 /storage/backups/
 !/storage/logs/.gitkeep
