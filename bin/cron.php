@@ -5,12 +5,13 @@ declare(strict_types=1);
 // 1분마다 실행: * * * * * cd /var/www/html && php bin/cron.php >> storage/logs/cron.log 2>&1
 // 1) 웹/API 점검: UPTIME_KUMA_URL 이 있으면 Uptime Kuma /metrics 수집, 없으면 대시보드가 직접 점검
 // 2) 웹/API 주소의 연결 IP·도메인 등록 정보 갱신  3) 웹/API 구분이 없는 리소스 채우기
-// 4) iOS 앱 버전 조회·앱 아이콘 내려받기  5) 못 보낸 문자 알림 재발송
+// 4) iOS 앱 버전 조회·앱 아이콘 내려받기  5) 못 보낸 문자 알림 재발송  6) 기본 설정 SQL(database/config.sql) 갱신
 
 use App\Alerts\AlertIngestor;
 use App\Alerts\DomainInspector;
 use App\Alerts\HttpChecker;
 use App\Alerts\UptimeKumaCollector;
+use App\ConfigSnapshot;
 use App\Database;
 use App\Env;
 use App\Monitoring\AppIconFetcher;
@@ -103,6 +104,15 @@ try {
     }
 } catch (Throwable $e) {
     $log('app-icon: ' . $e->getMessage());
+}
+
+// 기본 설정 SQL: 설정이 바뀌었을 때만 다시 쓴다 (git 으로 관리하는 최종 설정)
+try {
+    if (ConfigSnapshot::write(Database::connection(), dirname(__DIR__) . '/' . ConfigSnapshot::PATH)) {
+        $log('config: ' . ConfigSnapshot::PATH . ' 갱신');
+    }
+} catch (Throwable $e) {
+    $log('config: ' . $e->getMessage());
 }
 
 $sent = $notifier->dispatch();
