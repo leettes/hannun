@@ -3,6 +3,7 @@
 .phpunit.cache/
 /storage/logs/*
 /storage/*.sqlite
+!/storage/database.sqlite
 /storage/*.sqlite-*
 /storage/backups/
 !/storage/logs/.gitkeep
@@ -10,6 +11,4 @@
 .DS_Store
 
 __bak
-/public/app-icons/*
-!/public/app-icons/.gitkeep
 .phpunit.result.cache
