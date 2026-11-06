@@ -1,0 +1,15 @@
+/vendor/
+.env
+.phpunit.cache/
+/storage/logs/*
+/storage/*.sqlite
+/storage/*.sqlite-*
+/storage/backups/
+!/storage/logs/.gitkeep
+.idea/
+.DS_Store
+
+__bak
+/public/app-icons/*
+!/public/app-icons/.gitkeep
+.phpunit.result.cache
