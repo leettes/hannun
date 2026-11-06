@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <title>한눈</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#2f6fed"/>
+      <stop offset="1" stop-color="#22c1a1"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="15" fill="url(#bg)"/>
+  <!-- 눈 -->
+  <path d="M5 32 C13 12.5 51 12.5 59 32 C51 51.5 13 51.5 5 32 Z" fill="none" stroke="#fff" stroke-width="4.5" stroke-linejoin="round"/>
+  <!-- 눈동자 안의 응답·상태 펄스 -->
+  <circle cx="32" cy="32" r="13" fill="#fff"/>
+  <path d="M21.5 32 H26 L29 25.5 L34 38.5 L37 32 H42.5" fill="none" stroke="#2878d8" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
