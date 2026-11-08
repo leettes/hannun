@@ -1049,6 +1049,18 @@ a.svc-domain:hover { color: var(--accent); }
 .svc-apps { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
 .svc-app { width: 36px; height: 36px; border-radius: 9px; overflow: hidden; background: var(--surface); box-shadow: 0 1px 3px rgba(16, 24, 40, .12); display: inline-flex; align-items: center; justify-content: center; font-weight: 700; }
 .svc-app img { width: 100%; height: 100%; object-fit: cover; }
+.svc-preview-split { flex-direction: row; align-items: stretch; justify-content: stretch; gap: 0; padding: 10px 6px; }
+.svc-preview-split:hover { filter: none; }
+.svc-plat { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: 0 4px; }
+.svc-plat + .svc-plat { border-left: 1px solid color-mix(in srgb, var(--logo-fg) 18%, transparent); }
+.svc-plat-label { font-size: 11px; font-weight: 700; letter-spacing: .02em; opacity: .8; }
+.svc-plat-count { font-size: 11px; font-weight: 600; opacity: .75; }
+.svc-plat-empty { font-size: 12px; opacity: .55; }
+.svc-plat .svc-apps { gap: 4px; }
+.svc-plat .svc-app { width: 30px; height: 30px; border-radius: 8px; }
+a.svc-app { color: inherit; transition: transform .12s, box-shadow .12s; }
+a.svc-app:hover { text-decoration: none; transform: translateY(-2px); box-shadow: 0 0 0 2px var(--accent), 0 4px 10px rgba(16, 24, 40, .15); }
+a.svc-app:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .svc-preview-mark { font-size: 20px; font-weight: 750; letter-spacing: -0.01em; }
 .svc-preview-label { font-size: 12px; font-weight: 600; opacity: .85; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 

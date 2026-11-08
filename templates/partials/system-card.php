@@ -34,11 +34,20 @@ $responseTitle = implode(' · ', array_map(
 $uptimes = array_filter(array_column($s['http'], 'uptime_24h'), static fn ($v): bool => $v !== null);
 $uptime = $uptimes === [] ? null : min($uptimes);
 
-// 로고: 아이콘이 있는 앱(iOS 먼저), 없으면 이름 첫 글자 타일
-$icon = null;
+// 미리보기: 플랫폼별(iOS / Android, 웹앱은 있을 때만) 앱 아이콘. 아이콘마다 그 앱 상세(/apps/{id})로
+$byPlatform = ['ios' => [], 'android' => []];
+foreach ($apps as $a) {
+    $byPlatform[$a['platform']][] = $a;
+}
+if (($byPlatform['web'] ?? []) === []) {
+    unset($byPlatform['web']);
+}
+
+// 로고: 아이콘이 있는 첫 앱(→ 그 앱 상세), 없으면 이름 첫 글자 타일(→ 서비스 상세)
+$logoApp = null;
 foreach ($apps as $a) {
     if (!empty($a['icon_file'])) {
-        $icon = $a['icon_file'];
+        $logoApp = ['id' => (int) $a['id'], 'name' => (string) $a['name'], 'icon' => (string) $a['icon_file']];
         break;
     }
 }
@@ -50,9 +59,9 @@ $db = array_column($s['rds'], 'identifier');
 ?>
 <article class="svc-card s-<?= e($s['status']) ?><?= $selected ? ' is-selected' : '' ?>" style="--hue: <?= (int) $hue ?>">
     <header class="svc-head">
-        <a class="svc-logo" href="/systems/<?= e($code) ?>" aria-hidden="true" tabindex="-1">
-            <?php if ($icon !== null): ?>
-                <img src="/app-icons/<?= e(rawurlencode((string) $icon)) ?>" width="52" height="52" alt="" loading="lazy">
+        <a class="svc-logo" href="<?= $logoApp !== null ? '/apps/' . $logoApp['id'] : '/systems/' . e($code) ?>"<?= $logoApp !== null ? ' title="' . e($logoApp['name']) . ' 앱 상세"' : '' ?> aria-hidden="true" tabindex="-1">
+            <?php if ($logoApp !== null): ?>
+                <img src="/app-icons/<?= e(rawurlencode($logoApp['icon'])) ?>" width="52" height="52" alt="" loading="lazy">
             <?php else: ?>
                 <span><?= e($letter) ?></span>
             <?php endif ?>
@@ -72,25 +81,38 @@ $db = array_column($s['rds'], 'identifier');
     </header>
 
     <div class="svc-body">
-        <a class="svc-preview" href="/systems/<?= e($code) ?>" aria-label="<?= e($s['name']) ?> 상세">
-            <?php if ($apps !== []): ?>
-                <span class="svc-apps">
-                    <?php foreach (array_slice($apps, 0, 4) as $a): ?>
-                        <span class="svc-app" title="<?= e($a['name'] . ' · ' . ($a['platform'] === 'ios' ? 'iOS' : ($a['platform'] === 'android' ? 'Android' : '웹앱'))) ?>">
-                            <?php if (!empty($a['icon_file'])): ?>
-                                <img src="/app-icons/<?= e(rawurlencode((string) $a['icon_file'])) ?>" width="36" height="36" alt="" loading="lazy">
-                            <?php else: ?>
-                                <span><?= e(mb_substr((string) $a['name'], 0, 1)) ?></span>
-                            <?php endif ?>
-                        </span>
-                    <?php endforeach ?>
-                </span>
-                <span class="svc-preview-label">앱 <?= count($apps) ?>개</span>
-            <?php else: ?>
+        <?php if ($apps !== []): ?>
+            <?php /* 영역 자체는 링크가 아니다 (링크 안에 링크를 둘 수 없음). 아이콘마다 앱 상세로 */ ?>
+            <div class="svc-preview svc-preview-split">
+                <?php foreach ($byPlatform as $platform => $list): ?>
+                    <div class="svc-plat">
+                        <span class="svc-plat-label"><?= e(App\Monitoring\AppRegistry::PLATFORMS[$platform] ?? $platform) ?></span>
+                        <?php if ($list === []): ?>
+                            <span class="svc-plat-empty">없음</span>
+                        <?php else: ?>
+                            <span class="svc-apps">
+                                <?php foreach (array_slice($list, 0, 3) as $a): ?>
+                                    <?php $appLabel = $a['name'] . ' (' . (App\Monitoring\AppRegistry::PLATFORMS[$platform] ?? $platform) . ') 앱 상세' ?>
+                                    <a class="svc-app" href="/apps/<?= (int) $a['id'] ?>" title="<?= e($appLabel) ?>" aria-label="<?= e($appLabel) ?>">
+                                        <?php if (!empty($a['icon_file'])): ?>
+                                            <img src="/app-icons/<?= e(rawurlencode((string) $a['icon_file'])) ?>" width="36" height="36" alt="" loading="lazy">
+                                        <?php else: ?>
+                                            <span aria-hidden="true"><?= e(mb_substr((string) $a['name'], 0, 1)) ?></span>
+                                        <?php endif ?>
+                                    </a>
+                                <?php endforeach ?>
+                            </span>
+                            <span class="svc-plat-count"><?= count($list) ?>개<?= count($list) > 3 ? ' (+' . (count($list) - 3) . ')' : '' ?></span>
+                        <?php endif ?>
+                    </div>
+                <?php endforeach ?>
+            </div>
+        <?php else: ?>
+            <a class="svc-preview" href="/systems/<?= e($code) ?>" aria-label="<?= e($s['name']) ?> 상세">
                 <span class="svc-preview-mark"><?= e($s['name']) ?></span>
                 <span class="svc-preview-label"><?= e($s['description'] !== '' ? $s['description'] : (SystemRegistry::ENVIRONMENTS[$s['environment']] ?? $s['environment'])) ?></span>
-            <?php endif ?>
-        </a>
+            </a>
+        <?php endif ?>
 
         <dl class="svc-info">
             <div>

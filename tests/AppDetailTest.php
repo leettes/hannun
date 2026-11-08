@@ -75,6 +75,24 @@ final class AppDetailTest extends TestCase
         $this->assertStringContainsString('최근 7일', $client->get("/apps/{$ios}?days=7")->body);
     }
 
+    public function testDashboardAppIconsLinkToAppDetailByPlatform(): void
+    {
+        $client = new TestClient();
+        $client->loginAs('viewer');
+        [$ios, $android] = $this->seedApps($client->pdo());
+        $client->pdo()->exec("UPDATE apps SET icon_file = '{$ios}-abc.png' WHERE id = {$ios}");
+
+        $body = $client->get('/')->body;
+        $this->assertStringContainsString('<a class="svc-logo" href="/apps/' . $ios . '" title="Miri 앱 상세"', $body, '아이콘 로고도 앱 상세로');
+        $miriCard = substr($body, strpos($body, 'href="/systems/miri"'));
+        $miriCard = substr($miriCard, 0, strpos($miriCard, '</article>'));
+        foreach (['<a class="svc-app" href="/apps/' . $ios . '"', '<a class="svc-app" href="/apps/' . $android . '"', 'title="Miri (iOS) 앱 상세"', 'title="miri  (Android) 앱 상세"'] as $text) {
+            $this->assertStringContainsString($text, $miriCard);
+        }
+        $this->assertLessThan(strpos($miriCard, '>Android<'), strpos($miriCard, '>iOS<'), 'iOS · Android 영역');
+        $this->assertStringContainsString('2개', $miriCard, 'iOS 2개 (Miri, 다른 앱)');
+    }
+
     public function testStoreRatingIsWeightedByCount(): void
     {
         $rating = AppDetailController::storeRating([
