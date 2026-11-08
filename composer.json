@@ -34,7 +34,8 @@
         "test": "phpunit",
         "migrate": "php bin/migrate.php",
         "user:create": "php bin/create-user.php",
-        "seed:sample": "php bin/seed-sample.php"
+        "seed:sample": "php bin/seed-sample.php",
+        "reviews:collect": "php bin/collect-reviews.php"
     },
     "config": {
         "sort-packages": true

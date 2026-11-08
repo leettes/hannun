@@ -4,7 +4,7 @@
 지금 있는 **AWS 계정 → 관리회사** 구조와 같은 방식으로 만든다.
 
 > 상태: **A안으로 1·2단계 완료** (2026-11-06). 3단계(만료 알림)부터 남음.
-> 앱 상세 화면과 다운로드·리뷰 테이블(5단계 설계)은 2026-11-08 추가. 수집기는 아직 없음. 수집기 상세 설계는 `docs/app-manager-store-integration-spec.md`.
+> 앱 상세 화면과 다운로드·리뷰 테이블(5단계 설계), iOS 리뷰 수집은 2026-11-08 추가. 다운로드·Android 리뷰 수집기는 아직 없음. 수집기 상세 설계는 `docs/app-manager-store-integration-spec.md`.
 
 ## 1. 결정할 것
 
@@ -226,6 +226,20 @@
 - 실행: `bin/cron.php` 에 하루 한 번 (새벽, iOS 앱 조회와 같은 시간대). 실패하면 이전 값을 두고 오류만 기록 (도메인·App Store 조회와 같은 방식)
 - 키를 받기 전에는 CSV 를 손으로 올리는 방법(`source = 'manual'`)도 둘 수 있다
 
+#### iOS 리뷰 수집 (구현, 2026-11-08)
+
+- 출처: App Store 공개 리뷰 피드 `https://itunes.apple.com/kr/rss/customerreviews/page={1~10}/id={trackId}/sortby=mostrecent/json` (키 불필요). trackId 는 스토어 주소의 `/id123`, 없으면 App Store 조회 결과(`store_info.trackId`)
+- 일정: `bin/cron.php` 가 1분마다 부르고, 앱마다 **성공 후 하루, 실패 후 1시간** 뒤 다시 받는다. 한 번에 3개 앱. 바로 받으려면 `composer reviews:collect -- --all` 또는 `php bin/collect-reviews.php --app=ID`
+- 저장: `app_store_reviews` (source `itunes_rss`, territory `KOR`). 리뷰 ID 로 중복 없이 넣고 별점·제목·내용·버전이 바뀌면 덮어쓴다. 받은 그대로인 페이지가 나오면 그 뒤는 받지 않는다
+- 실행 기록: `app_store_sync_logs` (sync_type `reviews`, success / partial / failed, 새로 넣거나 바뀐 수, 오류 사유). 90일 지난 기록은 지운다. 앱 상세 리뷰 영역 아래에 마지막 결과 표시
+- 확인된 피드 특성 (2026-11-08)
+  - **브라우저처럼 보이는 User-Agent(`Mozilla/5.0 (compatible; …)`)를 보내면 빈 결과**를 준다. 그래서 수집기는 평범한 User-Agent(`hannun-review-collector/1.0`)로 따로 요청한다 (`AppReviewCollector::httpGet`)
+  - 앱에 따라 1페이지(최근 50개)만 주는 경우가 많다 (미리: 평점 1,022개인데 피드는 50개). 매일 받아 쌓으면 그 뒤로는 빠짐없이 모인다. 과거 전체는 App Store Connect API 가 필요
+  - 같은 주소가 가끔 빈 응답을 준다. 그래서 빈 응답은 "0건 성공"으로 두고 **지우지 않는다**
+  - 피드에는 리뷰 작성일이 없고 마지막 수정 시각(`updated`)만 있다. 처음 본 값을 `review_created_at` 으로 둔다
+  - 개발자 답변이 없다. 그래서 화면은 `AppRegistry::REPLY_SOURCES`(app_store_connect, google_play) 출처의 리뷰만 답변함/미답변을 표시하고 "답변 대기"로 센다
+- 첫 실행 결과 (개발 DB): 미리 50개, 나머지 iOS 앱(우반시·Nekoya·koibridge·kaybridge·명당·하이어)은 피드에 리뷰 없음
+
 #### 남은 결정
 
 - [ ] App Store Connect API 키 발급 담당 (계정 관리자 권한 필요, 키 역할은 Sales/Finance 이상)
@@ -238,7 +252,7 @@
 - [x] 앱 상세 화면 (`src/Controller/AppDetailController.php`, `templates/app.php`)
 - [x] 테이블 `app_store_daily_stats`, `app_store_reviews` 와 조회 (`AppRegistry::dailyStats`·`downloadTotals`·`reviewSummary`·`recentReviews`)
 - [x] 테스트 (`tests/AppDetailTest.php`)
-- [ ] iOS 리뷰 수집 (RSS, 키 없이 바로 가능)
+- [x] iOS 리뷰 수집 (2026-11-08, `src/Monitoring/AppReviewCollector.php`, `tests/AppReviewCollectorTest.php`) — 아래 "iOS 리뷰 수집" 참고
 - [ ] 매일 평점 기록 (`app_store_daily_stats.store_rating`·`store_rating_count`, source `itunes_lookup`)
 - [ ] App Store Connect 판매 리포트 → 다운로드
 - [ ] Play Console 통계 CSV → 다운로드·평점, Play Developer API → 리뷰

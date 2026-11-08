@@ -5,7 +5,7 @@ declare(strict_types=1);
 // 1분마다 실행: * * * * * cd /var/www/html && php bin/cron.php >> storage/logs/cron.log 2>&1
 // 1) 웹/API 점검: UPTIME_KUMA_URL 이 있으면 Uptime Kuma /metrics 수집, 없으면 대시보드가 직접 점검
 // 2) 웹/API 주소의 연결 IP·도메인 등록 정보 갱신  3) 웹/API 구분이 없는 리소스 채우기
-// 4) iOS 앱 버전 조회·앱 아이콘 내려받기  5) 못 보낸 문자 알림 재발송  6) 기본 설정 SQL(database/config.sql) 갱신
+// 4) iOS 앱 버전 조회·리뷰 수집·앱 아이콘 내려받기  5) 못 보낸 문자 알림 재발송  6) 기본 설정 SQL(database/config.sql) 갱신
 
 use App\Alerts\AlertIngestor;
 use App\Alerts\DomainInspector;
@@ -15,6 +15,7 @@ use App\ConfigSnapshot;
 use App\Database;
 use App\Env;
 use App\Monitoring\AppIconFetcher;
+use App\Monitoring\AppReviewCollector;
 use App\Monitoring\AppStoreLookup;
 use App\Monitoring\HttpKindDetector;
 use App\Notifications\Notifier;
@@ -91,6 +92,19 @@ try {
     }
 } catch (Throwable $e) {
     $log('app-store: ' . $e->getMessage());
+}
+
+// iOS 리뷰: App Store 공개 리뷰 피드. 앱마다 하루 한 번, 실패하면 1시간 뒤 (한 번에 3개)
+try {
+    $reviews = (new AppReviewCollector(Database::connection(...), AppReviewCollector::httpGet(...)))->run();
+    if ($reviews['collected'] !== []) {
+        $log('app-review: ' . implode(', ', $reviews['collected']));
+    }
+    foreach ($reviews['errors'] as $message) {
+        $log('app-review: ' . $message);
+    }
+} catch (Throwable $e) {
+    $log('app-review: ' . $e->getMessage());
 }
 
 // 앱 아이콘: 새 앱·주소가 바뀐 앱은 바로, 나머지는 7일마다 (한 번에 5개)

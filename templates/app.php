@@ -16,6 +16,7 @@ use App\Monitoring\Thresholds;
  * @var array{total: ?int, recent: ?int, previous: ?int, last_date: ?string} $downloads
  * @var array{count: int, average: ?float, distribution: array<int, int>, unanswered: int} $reviewSummary
  * @var list<array<string, mixed>> $reviews
+ * @var array<int, array{sync_status: string, records_count: int, started_at: string, finished_at: ?string, error_message: ?string, last_success_at: ?string}> $reviewSyncs app_id => 마지막 리뷰 수집
  * @var ?App\Auth\User $currentUser
  */
 $canEdit = isset($currentUser) && $currentUser->can('admin');
@@ -350,7 +351,7 @@ $stars = static function (float $rating): string {
             <div class="collect-empty collect-empty-sm">
                 <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M8 10h32a3 3 0 0 1 3 3v17a3 3 0 0 1-3 3H20l-8 7v-7H8a3 3 0 0 1-3-3V13a3 3 0 0 1 3-3Z"/><path d="M14 19h20M14 25h12"/></svg>
                 <strong>아직 수집된 리뷰가 없습니다</strong>
-                <span class="muted small">App Store / Google Play 리뷰를 모아 별점 분포와 최근 리뷰, 답변 여부를 보여 줍니다. (연동 예정)</span>
+                <span class="muted small"><?= isset($byPlatform['ios']) ? 'iOS 리뷰는 App Store 공개 리뷰 피드에서 하루 한 번 받습니다. 피드에 리뷰가 없거나 아직 받기 전입니다.' : 'App Store / Google Play 리뷰를 모아 별점 분포와 최근 리뷰를 보여 줍니다.' ?> Android 리뷰는 Play Developer API 연동 후 (예정)</span>
             </div>
         <?php else: ?>
             <div class="review-score">
@@ -373,10 +374,48 @@ $stars = static function (float $rating): string {
                             <?= $stars((float) $r['rating']) ?>
                             <span class="kind-tag"><?= e($platformLabel($r['platform'])) ?></span>
                             <span class="muted small"><?= e($r['reviewer_name'] ?? '익명') ?> · <?= e(substr((string) $r['review_created_at'], 0, 10)) ?><?= $r['app_version'] !== null ? ' · v' . e($r['app_version']) : '' ?></span>
-                            <?php if ($r['developer_reply'] === null): ?><span class="badge s-warning">미답변</span><?php else: ?><span class="badge s-up">답변함</span><?php endif ?>
+                            <?php if ($r['developer_reply'] !== null): ?>
+                                <span class="badge s-up">답변함</span>
+                            <?php elseif (in_array($r['source'], AppRegistry::REPLY_SOURCES, true)): ?>
+                                <span class="badge s-warning">미답변</span>
+                            <?php endif ?>
                         </div>
                         <?php if (!empty($r['title'])): ?><strong class="review-title"><?= e($r['title']) ?></strong><?php endif ?>
                         <p class="review-body"><?= e($r['content'] ?? '') ?></p>
+                    </li>
+                <?php endforeach ?>
+            </ul>
+        <?php endif ?>
+        <?php
+        // 리뷰 수집 상태 (플랫폼별 마지막 실행)
+        $syncLines = [];
+        foreach ($siblings as $a) {
+            $sync = $reviewSyncs[(int) $a['id']] ?? null;
+            if ($sync !== null) {
+                $syncLines[] = ['app' => $a, 'sync' => $sync];
+            }
+        }
+        ?>
+        <?php if ($syncLines !== []): ?>
+            <ul class="sync-status">
+                <?php foreach ($syncLines as ['app' => $a, 'sync' => $sync]): ?>
+                    <li class="small">
+                        <?php if ($sync['sync_status'] === 'success'): ?>
+                            <span class="t-up">●</span>
+                        <?php elseif ($sync['sync_status'] === 'running'): ?>
+                            <span class="muted">●</span>
+                        <?php else: ?>
+                            <span class="t-warn">●</span>
+                        <?php endif ?>
+                        <span class="muted"><?= e($platformLabel($a['platform'])) ?> 리뷰 수집</span>
+                        <?php if ($sync['sync_status'] === 'success'): ?>
+                            <span class="muted num"><?= e(substr($sync['started_at'], 5, 11)) ?> · 새로 받거나 바뀐 리뷰 <?= number_format($sync['records_count']) ?>개</span>
+                        <?php elseif ($sync['sync_status'] === 'running'): ?>
+                            <span class="muted">받는 중</span>
+                        <?php else: ?>
+                            <span class="t-warn" title="<?= e($sync['error_message'] ?? '') ?>"><?= $sync['sync_status'] === 'partial' ? '일부만 받음' : '실패' ?>: <?= e($sync['error_message'] ?? '') ?></span>
+                            <?php if ($sync['last_success_at'] !== null): ?><span class="muted num">(마지막 성공 <?= e(substr((string) $sync['last_success_at'], 5, 11)) ?>)</span><?php endif ?>
+                        <?php endif ?>
                     </li>
                 <?php endforeach ?>
             </ul>

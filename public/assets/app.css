@@ -1258,6 +1258,9 @@ a.svc-domain:hover { color: var(--accent); }
 .review-title { display: block; margin-top: 6px; font-size: 14px; }
 .review-body { margin: 4px 0 0; font-size: 14px; color: var(--text); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 
+.sync-status { list-style: none; margin: 12px 0 0; padding: 10px 0 0; border-top: 1px dashed var(--border); display: flex; flex-direction: column; gap: 4px; }
+.sync-status li { display: flex; gap: 6px; flex-wrap: wrap; align-items: baseline; }
+
 .quick-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .quick-actions .btn { justify-content: center; padding: 10px 12px; }
 .app-note { display: flex; gap: 10px; align-items: flex-start; }

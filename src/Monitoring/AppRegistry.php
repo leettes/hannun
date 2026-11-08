@@ -18,6 +18,9 @@ final class AppRegistry
 
     public const ACCOUNT_PLATFORMS = ['apple' => 'Apple', 'google' => 'Google'];
 
+    /** 개발자 답변까지 주는 리뷰 출처. 이 출처의 리뷰만 답변 여부를 센다 (App Store 공개 피드 itunes_rss 는 답변이 없음) */
+    public const REPLY_SOURCES = ['app_store_connect', 'google_play'];
+
     /** 스토어 상세 이동 버튼 문구. 웹앱은 앱 주소를 연다 */
     public const STORE_LABELS = ['ios' => 'App Store', 'android' => 'Google Play', 'web' => '앱 열기'];
 
@@ -346,7 +349,7 @@ final class AppRegistry
     }
 
     /**
-     * 수집한 리뷰 요약 (app_store_reviews): 개수, 평균, 별점별 개수, 답변 안 한 리뷰 수.
+     * 수집한 리뷰 요약 (app_store_reviews): 개수, 평균, 별점별 개수, 답변 안 한 리뷰 수(답변을 주는 출처만).
      *
      * @param list<int> $appIds
      * @return array{count: int, average: ?float, distribution: array<int, int>, unanswered: int}
@@ -359,9 +362,11 @@ final class AppRegistry
             return $summary;
         }
         foreach ($this->query(
-            'SELECT rating, COUNT(*) AS n, SUM(developer_reply IS NULL) AS unanswered FROM app_store_reviews
+            'SELECT rating, COUNT(*) AS n,
+                    SUM(developer_reply IS NULL AND source IN (' . self::placeholders(self::REPLY_SOURCES) . ')) AS unanswered
+             FROM app_store_reviews
              WHERE app_id IN (' . self::placeholders($appIds) . ') GROUP BY rating',
-            $appIds,
+            [...self::REPLY_SOURCES, ...$appIds],
         ) as $r) {
             $summary['distribution'][(int) $r['rating']] = (int) $r['n'];
             $summary['count'] += (int) $r['n'];
@@ -392,12 +397,47 @@ final class AppRegistry
 
         return $this->query(
             'SELECT r.id, r.app_id, p.platform, r.rating, r.title, r.content, r.reviewer_name, r.app_version, r.review_created_at,
-                    r.developer_reply, r.developer_reply_at
+                    r.developer_reply, r.developer_reply_at, r.source
              FROM app_store_reviews r JOIN apps p ON p.id = r.app_id
              WHERE r.app_id IN (' . self::placeholders($appIds) . ')
              ORDER BY r.review_created_at DESC, r.id DESC LIMIT ' . max(1, $limit),
             $appIds,
         );
+    }
+
+    /**
+     * 앱별 마지막 수집 결과 (app_store_sync_logs)
+     *
+     * @param list<int> $appIds
+     * @return array<int, array{sync_status: string, records_count: int, started_at: string, finished_at: ?string, error_message: ?string, last_success_at: ?string}> app_id => 결과
+     */
+    public function lastSyncs(array $appIds, string $syncType): array
+    {
+        if ($appIds === []) {
+            return [];
+        }
+        $rows = $this->query(
+            'SELECT l.app_id, l.sync_status, l.records_count, l.started_at, l.finished_at, l.error_message,
+                    (SELECT MAX(started_at) FROM app_store_sync_logs s
+                     WHERE s.app_id = l.app_id AND s.sync_type = l.sync_type AND s.sync_status = \'success\') AS last_success_at
+             FROM app_store_sync_logs l
+             WHERE l.sync_type = ? AND l.app_id IN (' . self::placeholders($appIds) . ')
+               AND l.id = (SELECT id FROM app_store_sync_logs WHERE app_id = l.app_id AND sync_type = l.sync_type ORDER BY started_at DESC, id DESC LIMIT 1)',
+            [$syncType, ...$appIds],
+        );
+        $result = [];
+        foreach ($rows as $r) {
+            $result[(int) $r['app_id']] = [
+                'sync_status' => (string) $r['sync_status'],
+                'records_count' => (int) $r['records_count'],
+                'started_at' => (string) $r['started_at'],
+                'finished_at' => $r['finished_at'],
+                'error_message' => $r['error_message'],
+                'last_success_at' => $r['last_success_at'],
+            ];
+        }
+
+        return $result;
     }
 
     /**

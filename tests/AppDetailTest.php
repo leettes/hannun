@@ -60,9 +60,11 @@ final class AppDetailTest extends TestCase
             // 같은 날을 다른 출처가 또 주면 더하지 않는다
             $stat->execute([$android, $date, 8, 'manual']);
         }
-        $review = $pdo->prepare("INSERT INTO app_store_reviews (app_id, external_review_id, rating, title, content, reviewer_name, review_created_at, developer_reply) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
-        $review->execute([$ios, 'r1', 5, '좋아요', '잘 쓰고 있어요', '사용자1', '2026-11-07 10:00:00', null]);
-        $review->execute([$android, 'r2', 2, null, '로그인이 안 돼요', '사용자2', '2026-11-08 09:00:00', '확인 중입니다']);
+        $review = $pdo->prepare("INSERT INTO app_store_reviews (app_id, external_review_id, rating, title, content, reviewer_name, review_created_at, developer_reply, source) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+        $review->execute([$ios, 'r1', 5, '좋아요', '잘 쓰고 있어요', '사용자1', '2026-11-07 10:00:00', null, 'app_store_connect']);
+        $review->execute([$android, 'r2', 2, null, '로그인이 안 돼요', '사용자2', '2026-11-08 09:00:00', '확인 중입니다', 'google_play']);
+        // 공개 피드 리뷰는 답변 정보가 없으므로 미답변으로 세지 않는다
+        $review->execute([$ios, 'r3', 4, null, '피드 리뷰', '사용자3', '2026-11-01 09:00:00', null, 'itunes_rss']);
 
         $body = $client->get("/apps/{$ios}")->body;
         foreach (['2,100', '1,200', '▲ 33.3%', '잘 쓰고 있어요', '로그인이 안 돼요', '답변 대기 1', '미답변', '답변함', 'class="dl-bar dl-ios"'] as $text) {

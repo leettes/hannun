@@ -7,6 +7,7 @@ namespace App\Controller;
 use App\Http\Request;
 use App\Http\Response;
 use App\Monitoring\AppRegistry;
+use App\Monitoring\AppReviewCollector;
 use App\Monitoring\MonitoringRepository;
 use App\View;
 
@@ -61,6 +62,7 @@ final class AppDetailController extends Controller
             'downloads' => $downloads,
             'reviewSummary' => $this->apps->reviewSummary($ids),
             'reviews' => $this->apps->recentReviews($ids, 3),
+            'reviewSyncs' => $this->apps->lastSyncs($ids, AppReviewCollector::SYNC_TYPE),
         ]);
     }
 
