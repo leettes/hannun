@@ -3,6 +3,8 @@
 AWS t3.micro(또는 t2.micro, 메모리 1GB) 한 대에 **한눈(Nginx + PHP-FPM + SQLite)** 과 **Uptime Kuma(Docker)** 를 함께 올리는 방법.
 Ubuntu 24.04 LTS 기준 (PHP 8.3 기본 패키지).
 
+> 2026-11-08: 한눈은 전용 micro 대신 **코이 서버**(프리즘넥서스 계정)에 올리기로 했다. 아래 설치 순서는 그대로 쓰되, 운영 중인 코이 서버이므로 기존 Nginx 설정·IAM 역할·IMDS 를 바꾸지 않도록 주의한다 (Nginx 는 server 블록만 추가). AWS 권한은 [AWS.md](AWS.md) §1 (코이 서버 기준).
+
 ```
                  인터넷 (HTTPS 443)
                         │

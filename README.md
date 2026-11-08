@@ -5,7 +5,7 @@
 - 구축 계획: [docs/PLAN.md](docs/PLAN.md)
 - DB 설계: [docs/DB.md](docs/DB.md)
 - 운영 서버 배포 (Ubuntu micro, Nginx·PHP-FPM, Uptime Kuma Docker, cron, 백업): [docs/DEPLOY.md](docs/DEPLOY.md)
-- AWS 설정 (RDS CPU 조회용 IAM 역할, 비용): [docs/AWS.md](docs/AWS.md)
+- AWS 설정 (EC2·RDS 지표 조회용 IAM 역할, 비용·권장 구성): [docs/AWS.md](docs/AWS.md)
 - 알림 연동 (Uptime Kuma 수집·Webhook, 문자 알림, CloudWatch/SNS): [docs/ALERTS.md](docs/ALERTS.md)
 - 서비스별 앱 관리 기획안 (앱, 개발자 계정, 시안, 작업 단계): [docs/APPS.md](docs/APPS.md)
 
