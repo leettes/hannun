@@ -177,6 +177,7 @@ final class DatabaseMonitoringRepository implements MonitoringRepository
         $checkedAt = array_filter(array_column([...$http, ...$ec2, ...$rds], 'last_checked_at'));
 
         return [
+            'id' => (int) $row['id'],
             'code' => $row['code'],
             'name' => $row['name'],
             'short_name' => $row['short_name'],

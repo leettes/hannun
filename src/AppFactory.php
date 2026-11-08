@@ -119,6 +119,7 @@ final class AppFactory
             AppController::class => new AppController($view, $data, $apps, $registry),
             AppAccountController::class => new AppAccountController($view, $data, $apps, $registry),
             SystemController::class => new SystemController($view, $data, $apps),
+            DashboardController::class => new DashboardController($view, $data, $apps),
             IncidentController::class => new IncidentController($view, $data, $incidentActions, $users, $notifier),
             default => new $class($view, $data),
         };

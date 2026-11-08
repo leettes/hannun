@@ -7,7 +7,9 @@ use App\Monitoring\TimeRange;
  *
  * @var TimeRange $range
  * @var list<array{name: string, url: string, points: list<array{t: int, avg: ?int, max: ?int, down: int, n: int}>}> $series
+ * @var bool $compact 기간 선택·표 없이 차트만 (대시보드 상세 패널)
  */
+$compact ??= false;
 $hasData = array_filter($series, static fn (array $s): bool => $s['points'] !== []) !== [];
 $ms = static fn (?int $v): string => $v === null ? '-' : number_format($v) . 'ms';
 
@@ -34,6 +36,7 @@ $chartData = [
 ];
 $customOpen = $range->isCustom() || $range->error !== null;
 ?>
+<?php if (!$compact): ?>
 <div class="range-bar">
     <nav class="tabs range-tabs" aria-label="조회 기간">
         <?php foreach (TimeRange::PRESETS as $key => [$label]): ?>
@@ -53,8 +56,9 @@ $customOpen = $range->isCustom() || $range->error !== null;
 <?php if ($range->error !== null): ?>
     <p class="field-error range-error"><?= e($range->error) ?> 최근 1시간을 보여 줍니다.</p>
 <?php endif ?>
+<?php endif ?>
 
-<div class="card chart-card">
+<div class="card chart-card<?= $compact ? ' chart-compact' : '' ?>">
     <?php if (!$hasData): ?>
         <div class="empty">이 기간에 응답 시간 기록이 없습니다.</div>
     <?php else: ?>
@@ -63,6 +67,7 @@ $customOpen = $range->isCustom() || $range->error !== null;
         <script src="<?= asset('chart.js') ?>" defer></script>
         <script type="application/json" class="chart-data"><?= json_encode($chartData, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_THROW_ON_ERROR) ?></script>
 
+        <?php if (!$compact): ?>
         <details class="chart-table">
             <summary class="muted small">표로 보기</summary>
             <div class="table-wrap">
@@ -92,5 +97,6 @@ $customOpen = $range->isCustom() || $range->error !== null;
                 </table>
             </div>
         </details>
+        <?php endif ?>
     <?php endif ?>
 </div>
