@@ -27,7 +27,7 @@ final class AppRegistry
     private const COMPANY = "COALESCE(acc.company_id, s.company_id, CASE WHEN s.cloud_provider = 'aws' THEN aws.company_id END)";
 
     private const APP_SELECT = 'SELECT p.id, p.system_id, p.platform, p.name, p.bundle_id, p.store_url, p.account_id, p.version, p.released_at,
-                p.checked_at, p.notes, p.is_active, p.updated_at, p.icon_file, p.icon_error, p.store_error,
+                p.checked_at, p.notes, p.is_active, p.created_at, p.updated_at, p.store_info, p.icon_file, p.icon_error, p.store_error,
                 s.code AS system_code, s.name AS system_name,
                 acc.name AS account_name, acc.membership_expires_at, acc.is_active AS account_active,
                 c.id AS company_id, c.name AS company_name
@@ -259,6 +259,165 @@ final class AppRegistry
             [$values['name'], $values['team_id'], $values['login_email'], $values['company_id'],
                 $values['membership_expires_at'], $values['notes'], (int) $values['active'], $id],
         );
+    }
+
+    /**
+     * 같은 앱의 플랫폼별 행: 같은 서비스에서 이름이 같은(대소문자 무시) 앱. 자기 자신 포함, iOS → Android → 웹앱 순.
+     *
+     * @param array<string, mixed> $app
+     * @return list<array<string, mixed>>
+     */
+    public function siblings(array $app): array
+    {
+        return $this->query(
+            self::APP_SELECT . " WHERE p.system_id = ? AND LOWER(TRIM(p.name)) = LOWER(TRIM(?))
+             ORDER BY CASE p.platform WHEN 'ios' THEN 0 WHEN 'android' THEN 1 ELSE 2 END, p.is_active DESC, p.id",
+            [$app['system_id'], $app['name']],
+        );
+    }
+
+    /**
+     * 일별 통계 (app_store_daily_stats). 날짜·플랫폼별로 합친다.
+     * 같은 앱·날짜를 여러 출처가 주면 큰 값 하나만 쓴다 (출처별로 따로 쌓이므로 더하면 중복).
+     *
+     * @param list<int> $appIds
+     * @return list<array{date: string, platform: string, downloads: ?int, active_users: ?int}>
+     */
+    public function dailyStats(array $appIds, string $from, string $to): array
+    {
+        if ($appIds === []) {
+            return [];
+        }
+
+        return array_map(static fn (array $r): array => [
+            'date' => (string) $r['stat_date'],
+            'platform' => (string) $r['platform'],
+            'downloads' => $r['downloads'] === null ? null : (int) $r['downloads'],
+            'active_users' => $r['active_users'] === null ? null : (int) $r['active_users'],
+        ], $this->query(
+            'SELECT d.stat_date, p.platform, SUM(d.downloads) AS downloads, SUM(d.active_users) AS active_users
+             FROM (' . self::perDay($appIds) . ') d JOIN apps p ON p.id = d.app_id
+             WHERE d.stat_date BETWEEN ? AND ?
+             GROUP BY d.stat_date, p.platform ORDER BY d.stat_date',
+            [...$appIds, $from, $to],
+        ));
+    }
+
+    /**
+     * 다운로드 합계: 전체 누적, 최근 기간, 그 앞 같은 길이 기간 (증감 비교). 기록이 없으면 null.
+     * 스토어 리포트는 1~2일 늦게 나오므로 기간은 오늘이 아니라 마지막으로 집계된 날짜에서 끝난다.
+     *
+     * @param list<int> $appIds
+     * @return array{total: ?int, recent: ?int, previous: ?int, last_date: ?string}
+     */
+    public function downloadTotals(array $appIds, int $days): array
+    {
+        $empty = ['total' => null, 'recent' => null, 'previous' => null, 'last_date' => null];
+        if ($appIds === []) {
+            return $empty;
+        }
+        $today = $this->query(
+            'SELECT MAX(stat_date) AS d FROM app_store_daily_stats WHERE downloads IS NOT NULL AND app_id IN (' . self::placeholders($appIds) . ')',
+            $appIds,
+        )[0]['d'];
+        if ($today === null) {
+            return $empty;
+        }
+        $recentFrom = date('Y-m-d', strtotime("{$today} -" . ($days - 1) . ' days'));
+        $previousFrom = date('Y-m-d', strtotime("{$recentFrom} -{$days} days"));
+        $row = $this->query(
+            'SELECT SUM(downloads) AS total,
+                    SUM(CASE WHEN stat_date >= ? AND stat_date <= ? THEN downloads END) AS recent,
+                    SUM(CASE WHEN stat_date >= ? AND stat_date < ? THEN downloads END) AS previous,
+                    MAX(CASE WHEN downloads IS NOT NULL THEN stat_date END) AS last_date
+             FROM (' . self::perDay($appIds) . ')',
+            [$recentFrom, $today, $previousFrom, $recentFrom, ...$appIds],
+        )[0];
+        if ($row['last_date'] === null) {
+            return $empty;
+        }
+
+        return [
+            'total' => (int) $row['total'],
+            'recent' => $row['recent'] === null ? null : (int) $row['recent'],
+            'previous' => $row['previous'] === null ? null : (int) $row['previous'],
+            'last_date' => (string) $row['last_date'],
+        ];
+    }
+
+    /**
+     * 수집한 리뷰 요약 (app_store_reviews): 개수, 평균, 별점별 개수, 답변 안 한 리뷰 수.
+     *
+     * @param list<int> $appIds
+     * @return array{count: int, average: ?float, distribution: array<int, int>, unanswered: int}
+     */
+    public function reviewSummary(array $appIds): array
+    {
+        $distribution = [5 => 0, 4 => 0, 3 => 0, 2 => 0, 1 => 0];
+        $summary = ['count' => 0, 'average' => null, 'distribution' => $distribution, 'unanswered' => 0];
+        if ($appIds === []) {
+            return $summary;
+        }
+        foreach ($this->query(
+            'SELECT rating, COUNT(*) AS n, SUM(developer_reply IS NULL) AS unanswered FROM app_store_reviews
+             WHERE app_id IN (' . self::placeholders($appIds) . ') GROUP BY rating',
+            $appIds,
+        ) as $r) {
+            $summary['distribution'][(int) $r['rating']] = (int) $r['n'];
+            $summary['count'] += (int) $r['n'];
+            $summary['unanswered'] += (int) $r['unanswered'];
+        }
+        if ($summary['count'] > 0) {
+            $sum = 0;
+            foreach ($summary['distribution'] as $rating => $n) {
+                $sum += $rating * $n;
+            }
+            $summary['average'] = round($sum / $summary['count'], 2);
+        }
+
+        return $summary;
+    }
+
+    /**
+     * 최근 리뷰
+     *
+     * @param list<int> $appIds
+     * @return list<array<string, mixed>>
+     */
+    public function recentReviews(array $appIds, int $limit = 5): array
+    {
+        if ($appIds === []) {
+            return [];
+        }
+
+        return $this->query(
+            'SELECT r.id, r.app_id, p.platform, r.rating, r.title, r.content, r.reviewer_name, r.app_version, r.review_created_at,
+                    r.developer_reply, r.developer_reply_at
+             FROM app_store_reviews r JOIN apps p ON p.id = r.app_id
+             WHERE r.app_id IN (' . self::placeholders($appIds) . ')
+             ORDER BY r.review_created_at DESC, r.id DESC LIMIT ' . max(1, $limit),
+            $appIds,
+        );
+    }
+
+    /**
+     * 앱·날짜마다 한 행 (출처가 여럿이면 큰 값). 자리표시자는 $appIds 순서대로 채운다.
+     *
+     * @param list<int> $appIds
+     */
+    private static function perDay(array $appIds): string
+    {
+        return 'SELECT app_id, stat_date, MAX(downloads) AS downloads, MAX(active_users) AS active_users
+                FROM app_store_daily_stats WHERE app_id IN (' . self::placeholders($appIds) . ')
+                GROUP BY app_id, stat_date';
+    }
+
+    /**
+     * @param list<mixed> $values
+     */
+    private static function placeholders(array $values): string
+    {
+        return implode(',', array_fill(0, count($values), '?'));
     }
 
     /**

@@ -14,6 +14,7 @@ use App\Controller\AlertController;
 use App\Controller\AuthController;
 use App\Controller\AppAccountController;
 use App\Controller\AppController;
+use App\Controller\AppDetailController;
 use App\Controller\AwsAccountController;
 use App\Controller\CompanyController;
 use App\Controller\DashboardController;
@@ -120,6 +121,7 @@ final class AppFactory
             AppAccountController::class => new AppAccountController($view, $data, $apps, $registry),
             SystemController::class => new SystemController($view, $data, $apps),
             DashboardController::class => new DashboardController($view, $data, $apps),
+            AppDetailController::class => new AppDetailController($view, $data, $apps),
             IncidentController::class => new IncidentController($view, $data, $incidentActions, $users, $notifier),
             default => new $class($view, $data),
         };
@@ -127,6 +129,7 @@ final class AppFactory
         $router = new Router($resolve);
         $router->get('/', [DashboardController::class, 'index']);
         $router->get('/systems/{code}', [SystemController::class, 'show']);
+        $router->get('/apps/{id}', [AppDetailController::class, 'show']);
         $router->get('/incidents', [IncidentController::class, 'index']);
         $router->get('/incidents/{id}', [IncidentController::class, 'show']);
         $router->post('/incidents/{id}', [IncidentController::class, 'update'], 'operator');

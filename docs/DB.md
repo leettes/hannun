@@ -24,6 +24,8 @@ users ── incidents.assignee / incident_events.user
 | `companies` | 관리회사 (AWS 계정을 관리·결제하는 법인). `aws_accounts.company_id`·`systems.company_id`(서비스 직접 지정, 우선) 가 참조, 삭제하지 않음 | `name`(법인명), `ceo_name`, `business_no`(숫자 10자리, 유니크), `notes` |
 | `app_store_accounts` | 개발자 계정 (Apple / Google). 비밀번호·키 없음, 삭제 대신 비활성화 | `platform`, `name`, `team_id`, `company_id`, `membership_expires_at` |
 | `apps` | 서비스별 앱 (iOS / Android / 웹앱). 관리회사 = 계정의 관리회사, 없으면 서비스의 관리회사 | `system_id`, `platform`, `bundle_id`(플랫폼별 유니크), `account_id`, `version`·`released_at`(iOS 는 App Store 자동, `store_info`·`checked_at`·`store_error`), `icon_file`(public/app-icons/, cron 이 7일마다 갱신) |
+| `app_store_daily_stats` | 앱(플랫폼 행)별 일별 스토어 통계. NULL=미제공, 0=실제 0. 수집기 연동 전 (docs/APPS.md 5단계, docs/app-manager-store-integration-spec.md 5.4) | UNIQUE(`app_id`, `stat_date`, `source`), `downloads`, `installs`, `active_users`, `revenue_gross`·`refunds_amount`·`currency`, `store_rating`·`store_rating_count`, `review_average`·`review_count`, `rating_1~5`, `metric_definition`, `collected_at`. 화면은 같은 날 여러 출처면 큰 값 하나만 사용 |
+| `app_store_reviews` | 스토어 리뷰·개발자 답변. 리뷰 ID 로 중복 없이 쌓고 수정되면 덮어씀. 수집기 연동 전 (명세서 5.5) | UNIQUE(`app_id`, `external_review_id`), `rating`(1~5), `title`, `content`, `reviewer_name`, `territory`, `language`, `app_version`, `review_created_at`·`review_updated_at`, `developer_reply`·`developer_reply_at`, `raw_data`(JSON) |
 | `systems` | 관리 대상 5개 시스템 | `code`, `name`, `environment` (`owner_user_id`는 008 이후 쓰지 않음) |
 | `system_owners` | 서비스 담당자 (서비스마다 여러 명, 장애 문자 수신) | `system_id`, `user_id` |
 | `resources` | 시스템별 EC2 / RDS / HTTP | `type`, `identifier`, `external_ref`(Uptime Kuma id), `config`(JSON), `current_status` |

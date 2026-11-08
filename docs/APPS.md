@@ -4,6 +4,7 @@
 지금 있는 **AWS 계정 → 관리회사** 구조와 같은 방식으로 만든다.
 
 > 상태: **A안으로 1·2단계 완료** (2026-11-06). 3단계(만료 알림)부터 남음.
+> 앱 상세 화면과 다운로드·리뷰 테이블(5단계 설계)은 2026-11-08 추가. 수집기는 아직 없음. 수집기 상세 설계는 `docs/app-manager-store-integration-spec.md`.
 
 ## 1. 결정할 것
 
@@ -173,6 +174,74 @@
 - [ ] 대시보드 카드에 앱 버전 줄 (⑤)
 - [ ] B안: 외부 서비스(SaaS) 관리. 서비스, 이름, 계정, 요금제, 결제 관리회사, 갱신일, 메모
 - [ ] APNs 키·푸시 인증서 만료일 (직접 입력, 만료 알림)
+
+### 5단계 · 앱 상세, 다운로드·리뷰 (2026-11-08 설계)
+
+시안: `docs/시안/앱상세.png`. 지금 있는 데이터로 채울 수 있는 부분은 구현했고, 다운로드·리뷰는 **화면 영역과 테이블만** 만들었다 (수집기 없음 → 빈 상태 안내).
+
+#### 화면 (`/apps/{id}`, 모든 역할)
+
+- "앱" 하나 = **같은 서비스 + 같은 이름**(대소문자·앞뒤 공백 무시)의 iOS·Android·웹앱 행 묶음. 어느 플랫폼 행으로 들어와도 같은 화면 (`AppRegistry::siblings`)
+- 앱 목록(설정 > 앱, 서비스 상세)의 앱 이름 → 상세. 관리자는 이름 옆 연필 아이콘 → 수정
+
+| 영역 | 데이터 | 상태 |
+|---|---|---|
+| 상단 카드: 아이콘·이름·운영 상태·플랫폼별 버전 | `apps` | 구현 |
+| 총 다운로드 수 (누적, 직전 기간 대비 증감, 추이) | `app_store_daily_stats.downloads` | 영역만 ("수집 전") |
+| 평균 평점 | iOS: `apps.store_info` 의 `averageUserRating`·`userRatingCount` (App Store 조회 API, 이미 수집 중). 여러 플랫폼이면 평점 수 가중 평균. 없으면 수집한 리뷰 평균 | iOS 구현 |
+| 최신 버전 | `apps.version`·`released_at` | 구현 |
+| 기본 정보 (서비스, 설명, 대표 이미지, 관리회사, 담당자, 등록·수정일) | `apps`, `systems`, `system_owners` | 구현 |
+| 스토어 정보 (플랫폼별 링크, 번들 ID, 버전, 업데이트일, 개발자 계정, 평점, 정보 출처) | `apps` | 구현. 미등록 플랫폼은 "등록하기" |
+| 다운로드 통계 (최근 7·30·90일, 플랫폼별 합계, 일별 누적 막대) | `app_store_daily_stats` | 영역만 |
+| 리뷰 (평균·별점 분포·최근 3개·답변 대기 수) | `app_store_reviews` | 영역만 |
+| 서버 & 인프라, 도메인 & SSL | 서비스의 웹/API·EC2·RDS·도메인 정보 | 구현 |
+| 빠른 작업 (스토어 열기, 서비스 상태, 설정 수정, 개발자 계정) | - | 구현 |
+| 메모 | `apps.notes` | 구현 |
+
+시안에서 뺀 것: 총 매출(결제 데이터 없음), 신규 가입·MAU(서비스 DB 지표라 앱 스토어와 별개), 배포 정보(GitHub 연동 없음), 연관 서비스(4단계 B안), CDN·자동 갱신 토글, 앱 삭제 버튼(삭제하지 않고 비활성화하는 원칙).
+
+#### 테이블 (`database/migrations/017_create_app_metrics.sql`)
+
+`docs/app-manager-store-integration-spec.md`(스토어 통합 연동 명세서) 5.4·5.5 의 테이블·컬럼 이름을 따르고 한눈 구조에 맞췄다.
+
+- **명세서 `app_stores` = 한눈 `apps`**: 한눈은 앱을 플랫폼마다 한 행(iOS 행, Android 행)으로 두므로 그 행이 곧 "앱 × 스토어". 명세서의 `app_store_id` 자리에 `app_id`(apps.id)
+- `app_store_daily_stats` — UNIQUE(`app_id`, `stat_date`, `source`). 출처별로 하루 한 행, 다시 받으면 덮어쓴다 (리포트가 1~2일 늦고 나중에 고쳐지기도 함)
+  - 다운로드·설치·활성 사용자, 매출·환불·통화, 스토어 평점·평점 수, 수집 리뷰 평균·수, 별점별 개수, `metric_definition`, `collected_at`
+  - NULL = 미제공·미수집, 0 = 실제 0. 수집하지 않은 값을 0 으로 채우지 않는다. 통화가 다르면 합산하지 않는다
+  - 화면은 같은 앱·날짜에 출처가 여럿이면 큰 값 하나만 쓴다 (더하면 중복)
+- `app_store_reviews` — UNIQUE(`app_id`, `external_review_id`). 수정된 리뷰·개발자 답변은 덮어쓴다. `raw_data` 에 토큰·인증 정보는 넣지 않는다
+- 명세서와 다른 점: SQLite(명세서는 MySQL), 시각은 KST 텍스트, CASCADE 없음(앱은 삭제하지 않고 비활성화), `app_stores`·`app_store_credentials`·`app_store_versions`·`app_store_sync_logs`·`app_store_reports` 는 수집기를 붙일 때 추가
+- 둘 다 실행 데이터라 `database/config.sql` 에 넣지 않는다
+- 화면의 기간은 오늘이 아니라 **마지막으로 집계된 날짜**에서 끝난다 (오늘을 0 으로 세면 증감이 틀어짐)
+
+#### 수집 방안 (다음 작업)
+
+| 데이터 | iOS | Android |
+|---|---|---|
+| 다운로드 | App Store Connect API **Sales and Trends** (`GET /v1/salesReports`, `reportType=SALES`, `frequency=DAILY`, 일 1회). 상품 유형 1·1F = 신규, 3·3F = 재설치, 7·7F = 업데이트 | Play Console 통계 CSV 가 Google Cloud Storage 버킷(`pubsite_prod_rev_…/stats/installs/`)에 매일 올라온다. 서비스 계정으로 내려받아 `Daily User Installs`·`Active Device Installs`·`Daily User Uninstalls` 사용 |
+| 평점 | 이미 수집 중 (App Store 조회 API). 매일 `app_store_daily_stats.store_rating*` 에도 남겨 추이를 본다 | 통계 CSV(`stats/ratings/`)의 `Total Average Rating` |
+| 리뷰 | 1차: 공개 RSS(`https://itunes.apple.com/kr/rss/customerreviews/id={trackId}/sortby=mostrecent/json`, 키 불필요, 최근 500개). 2차: App Store Connect API `GET /v1/apps/{id}/customerReviews` (답변 포함, 답변 작성도 가능) | Google Play Developer API `reviews.list` (서비스 계정. 최근 1주일 리뷰만 주므로 매일 받아 쌓는다). 답변은 `reviews.reply` |
+
+- 인증 키는 DB 에 저장하지 않는다 (§6 원칙). App Store Connect API 키(`.p8`)·Google 서비스 계정 JSON 은 서버 파일로 두고 `.env` 에 경로만 (`ASC_KEY_PATH`, `ASC_KEY_ID`, `ASC_ISSUER_ID`, `GOOGLE_PLAY_CREDENTIALS`, `GOOGLE_PLAY_BUCKET`). 키는 개발자 계정마다 다를 수 있어, 여러 개면 `app_store_accounts` 의 계정 이름과 맞춘 파일 이름 규칙으로 찾는다
+- 실행: `bin/cron.php` 에 하루 한 번 (새벽, iOS 앱 조회와 같은 시간대). 실패하면 이전 값을 두고 오류만 기록 (도메인·App Store 조회와 같은 방식)
+- 키를 받기 전에는 CSV 를 손으로 올리는 방법(`source = 'manual'`)도 둘 수 있다
+
+#### 남은 결정
+
+- [ ] App Store Connect API 키 발급 담당 (계정 관리자 권한 필요, 키 역할은 Sales/Finance 이상)
+- [ ] Google Play 서비스 계정 연결 (Play Console → 사용자 및 권한에 서비스 계정 초대, "앱 정보 보기·재무 데이터 보기")
+- [ ] 리뷰 답변을 이 화면에서 쓸지, 보기만 할지
+- [ ] 별점 1~2점 새 리뷰를 문자로 알릴지
+
+#### 작업
+
+- [x] 앱 상세 화면 (`src/Controller/AppDetailController.php`, `templates/app.php`)
+- [x] 테이블 `app_store_daily_stats`, `app_store_reviews` 와 조회 (`AppRegistry::dailyStats`·`downloadTotals`·`reviewSummary`·`recentReviews`)
+- [x] 테스트 (`tests/AppDetailTest.php`)
+- [ ] iOS 리뷰 수집 (RSS, 키 없이 바로 가능)
+- [ ] 매일 평점 기록 (`app_store_daily_stats.store_rating`·`store_rating_count`, source `itunes_lookup`)
+- [ ] App Store Connect 판매 리포트 → 다운로드
+- [ ] Play Console 통계 CSV → 다운로드·평점, Play Developer API → 리뷰
 
 ## 6. 원칙
 

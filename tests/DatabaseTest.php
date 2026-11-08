@@ -43,7 +43,7 @@ final class DatabaseTest extends TestCase
             ->fetchAll(PDO::FETCH_COLUMN);
 
         $this->assertSame([
-            'alert_events', 'app_store_accounts', 'apps', 'aws_accounts', 'check_results', 'companies', 'domain_overrides', 'incident_events', 'incidents',
+            'alert_events', 'app_store_accounts', 'app_store_daily_stats', 'app_store_reviews', 'apps', 'aws_accounts', 'check_results', 'companies', 'domain_overrides', 'incident_events', 'incidents',
             'login_attempts', 'notifications', 'resources', 'schema_migrations', 'system_owners', 'systems', 'users',
         ], $tables);
         $this->assertSame([], (new Migrator($this->pdo, dirname(__DIR__) . '/database/migrations'))->run());

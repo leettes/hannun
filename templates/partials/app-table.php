@@ -35,7 +35,10 @@ use App\Monitoring\AppRegistry;
                                 <?php else: ?>
                                     <span class="app-icon app-icon-empty" title="<?= e($a['icon_error'] ?? '아이콘을 가져오는 중 (cron)') ?>" aria-hidden="true"><?= e(mb_substr((string) $a['name'], 0, 1)) ?></span>
                                 <?php endif ?>
-                                <?= $editable ? '<a href="/settings/apps/' . (int) $a['id'] . '">' . e($a['name']) . '</a>' : e($a['name']) ?>
+                                <a href="/apps/<?= (int) $a['id'] ?>" title="앱 상세"><?= e($a['name']) ?></a>
+                                <?php if ($editable): ?>
+                                    <a class="app-edit" href="/settings/apps/<?= (int) $a['id'] ?>" title="앱 수정" aria-label="<?= e($a['name']) ?> 수정"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M11 2.5 13.5 5 6 12.5H3.5V10L11 2.5Z"/></svg></a>
+                                <?php endif ?>
                             </span>
                         </td>
                         <td class="nowrap"><?= e(AppRegistry::PLATFORMS[$a['platform']] ?? $a['platform']) ?></td>
