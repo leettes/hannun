@@ -1,6 +1,6 @@
 -- 한눈 기본 설정 데이터. bin/config.php export 가 만든다 (cron 이 설정 변경 시 자동 갱신). 직접 고치지 말 것.
 -- 불러오기: composer migrate && composer config:import
--- 스키마: 018_create_app_store_sync_logs
+-- 스키마: 019_add_system_admin_url
 
 BEGIN;
 

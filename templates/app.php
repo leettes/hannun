@@ -93,6 +93,11 @@ $stars = static function (float $rating): string {
             <span class="meta-live" aria-hidden="true"></span>
             최근 조회: <span class="num"><?= e($latestCheck === null ? '-' : str_replace('-', '.', substr((string) $latestCheck, 0, 16))) ?></span>
         </span>
+        <?php if (!empty($system['admin_url'])): ?>
+            <a class="btn btn-icon btn-admin" href="<?= e($system['admin_url']) ?>" target="_blank" rel="noopener noreferrer" title="<?= e($system['admin_url']) ?>">
+                <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="2" y="3" width="12" height="9" rx="1.5"/><path d="M5.5 14h5M8 12v2"/></svg>관리자 페이지 ↗
+            </a>
+        <?php endif ?>
         <?php if ($canEdit): ?>
             <a class="btn btn-primary btn-add" href="/settings/apps/new?system=<?= (int) $app['system_id'] ?>">
                 <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg>앱 추가
@@ -208,6 +213,16 @@ $stars = static function (float $rating): string {
             </dd>
             <dt>관리회사</dt><dd><?= e($app['company_name'] ?? '미지정') ?></dd>
             <dt>담당자</dt><dd><?= e($system['owner'] ?? '미지정') ?></dd>
+            <dt>관리자 페이지</dt>
+            <dd class="break">
+                <?php if (!empty($system['admin_url'])): ?>
+                    <a href="<?= e($system['admin_url']) ?>" target="_blank" rel="noopener noreferrer"><?= e(preg_replace('#^https?://#', '', (string) $system['admin_url'])) ?> ↗</a>
+                <?php elseif ($canEdit && isset($system['id'])): ?>
+                    <a class="muted" href="/settings/systems/<?= (int) $system['id'] ?>">서비스 관리에서 등록</a>
+                <?php else: ?>
+                    <span class="muted">-</span>
+                <?php endif ?>
+            </dd>
             <dt>등록일</dt><dd class="num"><?= e(substr((string) $firstCreated, 0, 10)) ?></dd>
             <dt>최근 수정일</dt><dd class="num"><?= e(substr((string) $lastEdited, 0, 16)) ?></dd>
         </dl>
@@ -251,7 +266,22 @@ $stars = static function (float $rating): string {
                             <dt>버전</dt><dd class="num"><?= e($a['version'] ?? '-') ?></dd>
                             <dt>최종 업데이트</dt><dd class="num"><?= e($a['released_at'] ?? '-') ?></dd>
                             <?php if ($platform !== 'web'): ?>
-                                <dt>개발자 계정</dt><dd><?= e($a['account_name'] ?? '-') ?></dd>
+                                <dt>개발자 계정</dt>
+                                <dd>
+                                    <?php if ($a['account_id'] === null): ?>
+                                        <span class="muted">-</span>
+                                    <?php elseif ($canEdit): ?>
+                                        <a href="/settings/app-accounts/<?= (int) $a['account_id'] ?>" title="<?= e('로그인 ' . ($a['account_login_email'] ?? '-')) ?>"><?= e($a['account_name']) ?></a>
+                                        <?php if (!empty($a['account_login_email'])): ?><div class="muted small break"><?= e($a['account_login_email']) ?></div><?php endif ?>
+                                    <?php else: ?>
+                                        <?= e($a['account_name']) ?>
+                                    <?php endif ?>
+                                </dd>
+                                <?php $console = AppRegistry::consoleUrl($a) ?>
+                                <?php if ($console !== null): ?>
+                                    <dt>개발자 콘솔</dt>
+                                    <dd><a href="<?= e($console) ?>" target="_blank" rel="noopener noreferrer"><?= e(AppRegistry::CONSOLE_LABELS[$platform]) ?> ↗</a></dd>
+                                <?php endif ?>
                             <?php endif ?>
                             <?php if (isset($storeRating['platforms'][$platform])): $pr = $storeRating['platforms'][$platform] ?>
                                 <dt>평점</dt><dd><?= $stars($pr['average']) ?> <span class="num"><?= number_format($pr['average'], 1) ?></span> <span class="muted small">(<?= number_format($pr['count']) ?>)</span></dd>
@@ -481,12 +511,18 @@ $stars = static function (float $rating): string {
             <?php foreach ($siblings as $a): if ($a['store_url'] === null) { continue; } ?>
                 <a class="btn btn-icon<?= $a['platform'] === 'ios' ? ' btn-primary' : '' ?>" href="<?= e($a['store_url']) ?>" target="_blank" rel="noopener noreferrer"><?= e(AppRegistry::STORE_LABELS[$a['platform']] ?? '열기') ?> ↗</a>
             <?php endforeach ?>
+            <?php if (!empty($system['admin_url'])): ?>
+                <a class="btn btn-icon" href="<?= e($system['admin_url']) ?>" target="_blank" rel="noopener noreferrer">관리자 페이지 ↗</a>
+            <?php endif ?>
+            <?php foreach ($siblings as $a): $console = AppRegistry::consoleUrl($a); if ($console === null) { continue; } ?>
+                <a class="btn btn-icon" href="<?= e($console) ?>" target="_blank" rel="noopener noreferrer"><?= e(AppRegistry::CONSOLE_LABELS[$a['platform']]) ?> ↗</a>
+            <?php endforeach ?>
             <a class="btn btn-icon" href="/systems/<?= e($app['system_code']) ?>">서비스 상태 · 장애 이력</a>
             <?php if ($canEdit): ?>
                 <a class="btn btn-icon" href="/settings/apps/<?= (int) $app['id'] ?>">설정 수정</a>
-                <?php if ($app['account_id'] !== null): ?>
-                    <a class="btn btn-icon" href="/settings/app-accounts/<?= (int) $app['account_id'] ?>">개발자 계정</a>
-                <?php endif ?>
+                <?php foreach (array_unique(array_filter(array_column($siblings, 'account_id', 'platform'))) as $platform => $accountId): ?>
+                    <a class="btn btn-icon" href="/settings/app-accounts/<?= (int) $accountId ?>"><?= e(AppRegistry::PLATFORMS[$platform] ?? $platform) ?> 개발자 계정</a>
+                <?php endforeach ?>
             <?php endif ?>
         </div>
     </section>

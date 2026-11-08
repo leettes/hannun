@@ -27,7 +27,7 @@ users ── incidents.assignee / incident_events.user
 | `app_store_daily_stats` | 앱(플랫폼 행)별 일별 스토어 통계. NULL=미제공, 0=실제 0. 수집기 연동 전 (docs/APPS.md 5단계, docs/app-manager-store-integration-spec.md 5.4) | UNIQUE(`app_id`, `stat_date`, `source`), `downloads`, `installs`, `active_users`, `revenue_gross`·`refunds_amount`·`currency`, `store_rating`·`store_rating_count`, `review_average`·`review_count`, `rating_1~5`, `metric_definition`, `collected_at`. 화면은 같은 날 여러 출처면 큰 값 하나만 사용 |
 | `app_store_reviews` | 스토어 리뷰·개발자 답변. 리뷰 ID 로 중복 없이 쌓고 수정되면 덮어씀. iOS 는 App Store 공개 피드에서 수집 중 (명세서 5.5) | UNIQUE(`app_id`, `external_review_id`), `rating`(1~5), `title`, `content`, `reviewer_name`, `territory`, `language`, `app_version`, `review_created_at`·`review_updated_at`, `developer_reply`·`developer_reply_at`, `raw_data`(JSON), `source`(itunes_rss 는 답변 정보 없음) |
 | `app_store_sync_logs` | 스토어 수집 작업 이력 (명세서 5.7). 수집기가 다음 실행 시각을 정하고 앱 상세가 마지막 결과를 보여 줌. 90일 지나면 삭제 | `app_id`, `sync_type`(reviews …), `sync_status`(running/success/partial/failed), `records_count`, `started_at`·`finished_at`, `error_code`·`error_message` |
-| `systems` | 관리 대상 5개 시스템 | `code`, `name`, `environment` (`owner_user_id`는 008 이후 쓰지 않음) |
+| `systems` | 관리 대상 5개 시스템 | `code`, `name`, `environment` (`owner_user_id`는 008 이후 쓰지 않음), `admin_url`(관리자 페이지 바로가기) |
 | `system_owners` | 서비스 담당자 (서비스마다 여러 명, 장애 문자 수신) | `system_id`, `user_id` |
 | `resources` | 시스템별 EC2 / RDS / HTTP | `type`, `identifier`, `external_ref`(Uptime Kuma id), `config`(JSON), `current_status` |
 | `domain_overrides` | 도메인 정보 수동 입력 (등록 도메인마다 하나). 값이 있는 항목은 `resources.domain_info`(자동 수집) 대신 표시, cron 은 건드리지 않음 | `domain`, `registrar`, `expires_at`, `nameservers`(JSON), `memo` |

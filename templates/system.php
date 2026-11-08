@@ -16,6 +16,7 @@ $s = $system;
         ['html' => '<span class="env-tag env-' . e($s['environment']) . '">' . e(App\Monitoring\SystemRegistry::ENVIRONMENTS[$s['environment']] ?? $s['environment']) . '</span>', 'class' => 'is-plain'],
         ['icon' => 'user', 'html' => '담당 ' . e($s['owner'])],
         ['icon' => 'cloud', 'html' => e(cloud_label($s['cloud'] ?? 'aws', $s['aws_alias'] ?? null, $s['aws_account'] === '-' ? null : $s['aws_account']))],
+        ...(empty($s['admin_url']) ? [] : [['html' => '<a href="' . e($s['admin_url']) . '" target="_blank" rel="noopener noreferrer">관리자 페이지 ↗</a>']]),
     ],
     'aside' => '<span class="muted small">마지막 점검 ' . e(time_ago($s['last_checked_at'])) . '</span>',
 ]) ?>

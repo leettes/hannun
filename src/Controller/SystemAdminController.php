@@ -47,7 +47,7 @@ final class SystemAdminController extends Controller
 
     public function create(Request $request): Response
     {
-        return $this->systemForm(null, ['code' => '', 'name' => '', 'short_name' => '', 'environment' => 'prod', 'cloud_provider' => 'aws', 'aws_account_id' => '', 'company_id' => '', 'owner_user_ids' => [], 'description' => '', 'active' => true]);
+        return $this->systemForm(null, ['code' => '', 'name' => '', 'short_name' => '', 'environment' => 'prod', 'cloud_provider' => 'aws', 'aws_account_id' => '', 'company_id' => '', 'owner_user_ids' => [], 'description' => '', 'admin_url' => '', 'active' => true]);
     }
 
     public function store(Request $request): Response
@@ -88,6 +88,7 @@ final class SystemAdminController extends Controller
             'owner_user_ids' => array_map(strval(...), $system['owner_user_ids']),
             'short_name' => (string) ($system['short_name'] ?? ''),
             'description' => (string) ($system['description'] ?? ''),
+            'admin_url' => (string) ($system['admin_url'] ?? ''),
             'active' => (bool) $system['is_active'],
         ], flash: $this->flash($request));
     }
@@ -326,6 +327,7 @@ final class SystemAdminController extends Controller
             'company_id' => $request->input('company_id') ?? '',
             'owner_user_ids' => array_values(array_unique($request->inputList('owner_user_ids'))),
             'description' => trim($request->input('description') ?? ''),
+            'admin_url' => trim($request->input('admin_url') ?? ''),
             'active' => $request->input('active') === '1',
         ];
     }
@@ -365,6 +367,9 @@ final class SystemAdminController extends Controller
         if (mb_strlen($input['description']) > 200) {
             $errors['description'] = '설명은 200자 이내로 입력하세요.';
         }
+        if ($input['admin_url'] !== '' && !self::validWebUrl($input['admin_url'])) {
+            $errors['admin_url'] = 'http:// 또는 https:// 로 시작하는 주소를 500자 이내로 입력하세요.';
+        }
 
         return $errors;
     }
@@ -381,6 +386,7 @@ final class SystemAdminController extends Controller
             'owner_user_ids' => array_map(intval(...), $input['owner_user_ids']),
             'short_name' => $input['short_name'] === '' ? null : $input['short_name'],
             'description' => $input['description'] === '' ? null : $input['description'],
+            'admin_url' => $input['admin_url'] === '' ? null : $input['admin_url'],
         ] + $input;
     }
 
@@ -556,6 +562,17 @@ final class SystemAdminController extends Controller
     /**
      * @return array<string, mixed>|null
      */
+    /** 관리자 페이지 주소: http(s) 이고 호스트가 있는 500자 이내 */
+    private static function validWebUrl(string $url): bool
+    {
+        $parts = parse_url($url);
+
+        return mb_strlen($url) <= 500
+            && filter_var($url, FILTER_VALIDATE_URL) !== false
+            && in_array(strtolower((string) ($parts['scheme'] ?? '')), ['http', 'https'], true)
+            && !empty($parts['host']);
+    }
+
     private function findSystem(string $id): ?array
     {
         return ctype_digit($id) ? $this->registry->system((int) $id) : null;

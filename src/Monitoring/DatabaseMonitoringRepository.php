@@ -65,7 +65,7 @@ final class DatabaseMonitoringRepository implements MonitoringRepository
 
         $systems = [];
         foreach ($this->query(
-            "SELECT s.id, s.code, s.name, s.short_name, s.environment, s.description, s.cloud_provider,
+            "SELECT s.id, s.code, s.name, s.short_name, s.environment, s.description, s.admin_url, s.cloud_provider,
                     (SELECT GROUP_CONCAT(name, ', ') FROM (
                         SELECT u.name FROM system_owners so JOIN users u ON u.id = so.user_id
                         WHERE so.system_id = s.id ORDER BY u.name)) AS owner,
@@ -184,6 +184,7 @@ final class DatabaseMonitoringRepository implements MonitoringRepository
             'environment' => $row['environment'],
             'owner' => $row['owner'] ?? '미지정',
             'description' => $row['description'] ?? '',
+            'admin_url' => $row['admin_url'] ?? null,
             'cloud' => $row['cloud_provider'],
             'aws_account' => $row['aws_account'] ?? '-',
             'aws_alias' => $row['aws_alias'],

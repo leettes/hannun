@@ -222,6 +222,28 @@ final class SystemAdminTest extends TestCase
         $this->assertNull($this->value($client, 'SELECT short_name FROM systems WHERE id = 1'), '비우면 약칭 없음');
     }
 
+    public function testAdminUrlIsSavedValidatedAndShown(): void
+    {
+        $client = new TestClient();
+        $client->loginAs('admin');
+        $form = fn (string $url): array => ['name' => '미리', 'environment' => 'prod', 'cloud_provider' => 'aws', 'admin_url' => $url, 'active' => '1'];
+        $saved = fn (): ?string => $client->pdo()->query('SELECT admin_url FROM systems WHERE id = 1')->fetchColumn() ?: null;
+
+        foreach (['javascript:alert(1)', 'ftp://admin.example.com', 'admin.example.com', 'https://'] as $bad) {
+            $this->assertSame(422, $client->post('/settings/systems/1', $form($bad))->status, $bad);
+        }
+        $this->assertNull($saved());
+
+        $this->assertSame(302, $client->post('/settings/systems/1', $form(' https://admin.miri.example.com/login '))->status);
+        $this->assertSame('https://admin.miri.example.com/login', $saved());
+        $this->assertStringContainsString('value="https://admin.miri.example.com/login"', $client->get('/settings/systems/1')->body);
+        $code = (string) $client->pdo()->query('SELECT code FROM systems WHERE id = 1')->fetchColumn();
+        $this->assertStringContainsString('href="https://admin.miri.example.com/login" target="_blank"', $client->get("/systems/{$code}")->body, '서비스 상세 바로가기');
+
+        $this->assertSame(302, $client->post('/settings/systems/1', $form(''))->status);
+        $this->assertNull($saved(), '비우면 지운다');
+    }
+
     public function testSystemCanHaveSeveralOwners(): void
     {
         $client = new TestClient();

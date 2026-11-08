@@ -140,7 +140,7 @@ final class SystemRegistry
      */
     public function system(int $id): ?array
     {
-        $system = $this->query('SELECT id, code, name, short_name, environment, cloud_provider, aws_account_id, company_id, description, is_active FROM systems WHERE id = ?', [$id])[0] ?? null;
+        $system = $this->query('SELECT id, code, name, short_name, environment, cloud_provider, aws_account_id, company_id, description, admin_url, is_active FROM systems WHERE id = ?', [$id])[0] ?? null;
         if ($system !== null) {
             $system['owner_user_ids'] = $this->ownerIds($id);
         }
@@ -175,8 +175,8 @@ final class SystemRegistry
     public function createSystem(array $values): int
     {
         $this->execute(
-            'INSERT INTO systems (code, name, short_name, environment, cloud_provider, aws_account_id, company_id, description, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-            [$values['code'], $values['name'], $values['short_name'] ?? null, $values['environment'], $values['cloud_provider'] ?? 'aws', $values['aws_account_id'] ?? null, $values['company_id'] ?? null, $values['description'], (int) $values['active']],
+            'INSERT INTO systems (code, name, short_name, environment, cloud_provider, aws_account_id, company_id, description, admin_url, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            [$values['code'], $values['name'], $values['short_name'] ?? null, $values['environment'], $values['cloud_provider'] ?? 'aws', $values['aws_account_id'] ?? null, $values['company_id'] ?? null, $values['description'], $values['admin_url'] ?? null, (int) $values['active']],
         );
         $id = (int) ($this->connection)()->lastInsertId();
         $this->setOwners($id, $values['owner_user_ids'] ?? []);
@@ -225,8 +225,8 @@ final class SystemRegistry
     public function updateSystem(int $id, array $values): void
     {
         $this->execute(
-            'UPDATE systems SET name = ?, short_name = ?, environment = ?, cloud_provider = ?, aws_account_id = ?, company_id = ?, description = ?, is_active = ? WHERE id = ?',
-            [$values['name'], $values['short_name'] ?? null, $values['environment'], $values['cloud_provider'], $values['aws_account_id'], $values['company_id'] ?? null, $values['description'], (int) $values['active'], $id],
+            'UPDATE systems SET name = ?, short_name = ?, environment = ?, cloud_provider = ?, aws_account_id = ?, company_id = ?, description = ?, admin_url = ?, is_active = ? WHERE id = ?',
+            [$values['name'], $values['short_name'] ?? null, $values['environment'], $values['cloud_provider'], $values['aws_account_id'], $values['company_id'] ?? null, $values['description'], $values['admin_url'] ?? null, (int) $values['active'], $id],
         );
         $this->setOwners($id, $values['owner_user_ids']);
     }

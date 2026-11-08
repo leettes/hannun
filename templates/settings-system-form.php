@@ -8,7 +8,7 @@ use App\Monitoring\SystemRegistry;
  * @var list<array<string, mixed>> $awsAccounts
  * @var bool $showAwsResources
  * @var list<array<string, mixed>> $companies
- * @var array{code: string, name: string, environment: string, cloud_provider: string, aws_account_id: string, company_id: string, owner_user_ids: list<string>, short_name: string, description: string, active: bool} $values
+ * @var array{code: string, name: string, environment: string, cloud_provider: string, aws_account_id: string, company_id: string, owner_user_ids: list<string>, short_name: string, description: string, admin_url: string, active: bool} $values
  * @var array<string, string> $errors
  * @var ?string $flash
  * @var string $csrfToken
@@ -121,6 +121,12 @@ $error = static fn (string $field): string => isset($errors[$field])
             <span>설명</span>
             <input type="text" name="description" value="<?= e($values['description']) ?>" maxlength="200" placeholder="선택">
             <?= $error('description') ?>
+        </label>
+        <label>
+            <span>관리자 페이지</span>
+            <input type="url" name="admin_url" value="<?= e($values['admin_url']) ?>" maxlength="500" placeholder="https://admin.example.com (선택)" inputmode="url">
+            <span class="muted small">서비스 관리자(백오피스) 주소. 앱 상세·서비스 상세에 바로가기로 나옵니다. 계정·비밀번호는 넣지 마세요.</span>
+            <?= $error('admin_url') ?>
         </label>
         <?php if (!$isNew): ?>
             <label>

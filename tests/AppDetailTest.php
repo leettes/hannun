@@ -75,6 +75,38 @@ final class AppDetailTest extends TestCase
         $this->assertStringContainsString('최근 7일', $client->get("/apps/{$ios}?days=7")->body);
     }
 
+    public function testAdminPageAndDeveloperConsoleLinks(): void
+    {
+        $client = new TestClient();
+        $client->loginAs('admin');
+        $pdo = $client->pdo();
+        [$ios] = $this->seedApps($pdo);
+        $pdo->exec("INSERT INTO app_store_accounts (platform, name, login_email) VALUES ('apple', '미리 Apple', 'dev@miri.example.com')");
+        $account = (int) $pdo->lastInsertId();
+        $pdo->exec("UPDATE apps SET account_id = {$account} WHERE id = {$ios}");
+
+        // 관리자 페이지 주소가 없으면 관리자에게 등록 안내
+        $body = $client->get("/apps/{$ios}")->body;
+        $this->assertStringContainsString('서비스 관리에서 등록', $body);
+        foreach (['href="https://appstoreconnect.apple.com/apps/123/distribution"', 'href="https://play.google.com/console"', 'App Store Connect ↗', 'Google Play Console ↗',
+            'href="/settings/app-accounts/' . $account . '"', 'dev@miri.example.com', 'iOS 개발자 계정'] as $text) {
+            $this->assertStringContainsString($text, $body);
+        }
+
+        $pdo->exec("UPDATE systems SET admin_url = 'https://admin.miri.example.com' WHERE code = 'miri'");
+        $body = $client->get("/apps/{$ios}")->body;
+        $this->assertSame(3, substr_count($body, 'href="https://admin.miri.example.com" target="_blank"'), '상단·기본 정보·빠른 작업');
+
+        // 조회 권한: 바깥 링크는 보이고, 내부 설정·로그인 이메일은 안 보인다
+        $client->loginAs('viewer');
+        $body = $client->get("/apps/{$ios}")->body;
+        $this->assertStringContainsString('href="https://admin.miri.example.com"', $body);
+        $this->assertStringContainsString('App Store Connect ↗', $body);
+        $this->assertStringContainsString('미리 Apple', $body);
+        $this->assertStringNotContainsString('dev@miri.example.com', $body);
+        $this->assertStringNotContainsString('/settings/', $body);
+    }
+
     public function testDashboardAppIconsLinkToAppDetailByPlatform(): void
     {
         $client = new TestClient();

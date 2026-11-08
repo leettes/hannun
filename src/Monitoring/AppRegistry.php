@@ -18,6 +18,9 @@ final class AppRegistry
 
     public const ACCOUNT_PLATFORMS = ['apple' => 'Apple', 'google' => 'Google'];
 
+    /** 개발자 콘솔 이름 (앱 상세 바로가기) */
+    public const CONSOLE_LABELS = ['ios' => 'App Store Connect', 'android' => 'Google Play Console'];
+
     /** 개발자 답변까지 주는 리뷰 출처. 이 출처의 리뷰만 답변 여부를 센다 (App Store 공개 피드 itunes_rss 는 답변이 없음) */
     public const REPLY_SOURCES = ['app_store_connect', 'google_play'];
 
@@ -32,7 +35,7 @@ final class AppRegistry
     private const APP_SELECT = 'SELECT p.id, p.system_id, p.platform, p.name, p.bundle_id, p.store_url, p.account_id, p.version, p.released_at,
                 p.checked_at, p.notes, p.is_active, p.created_at, p.updated_at, p.store_info, p.icon_file, p.icon_error, p.store_error,
                 s.code AS system_code, s.name AS system_name,
-                acc.name AS account_name, acc.membership_expires_at, acc.is_active AS account_active,
+                acc.name AS account_name, acc.login_email AS account_login_email, acc.membership_expires_at, acc.is_active AS account_active,
                 c.id AS company_id, c.name AS company_name
          FROM apps p
          JOIN systems s ON s.id = p.system_id
@@ -262,6 +265,23 @@ final class AppRegistry
             [$values['name'], $values['team_id'], $values['login_email'], $values['company_id'],
                 $values['membership_expires_at'], $values['notes'], (int) $values['active'], $id],
         );
+    }
+
+    /**
+     * 개발자 콘솔 주소. iOS 는 App Store 앱 id(trackId)가 있으면 그 앱 화면, 없으면 앱 목록.
+     * Google Play Console 은 개발자 계정·앱 내부 id 가 있어야 앱 화면으로 갈 수 있어 콘솔 첫 화면으로 보낸다. 웹앱은 없음.
+     *
+     * @param array<string, mixed> $app
+     */
+    public static function consoleUrl(array $app): ?string
+    {
+        return match ($app['platform']) {
+            'ios' => ($trackId = AppReviewCollector::trackId($app['store_url'] ?? null, $app['store_info'] ?? null)) !== null
+                ? "https://appstoreconnect.apple.com/apps/{$trackId}/distribution"
+                : 'https://appstoreconnect.apple.com/apps',
+            'android' => 'https://play.google.com/console',
+            default => null,
+        };
     }
 
     /**
