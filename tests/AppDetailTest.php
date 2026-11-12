@@ -75,6 +75,50 @@ final class AppDetailTest extends TestCase
         $this->assertStringContainsString('최근 7일', $client->get("/apps/{$ios}?days=7")->body);
     }
 
+    public function testReviewListPagesAndFilters(): void
+    {
+        $client = new TestClient();
+        $client->loginAs();
+        $pdo = $client->pdo();
+        [$ios, $android] = $this->seedApps($pdo);
+
+        $review = $pdo->prepare('INSERT INTO app_store_reviews (app_id, external_review_id, rating, content, review_created_at, developer_reply, source) VALUES (?, ?, ?, ?, ?, ?, ?)');
+        // iOS 35개 (공개 피드, 별 5) + Android 5개 (별 1, 2개는 답변함)
+        foreach (range(1, 35) as $i) {
+            $review->execute([$ios, "i{$i}", 5, sprintf('iOS 리뷰 %02d', $i), sprintf('2026-10-%02d 10:00:00', min($i, 28)), null, 'itunes_rss']);
+        }
+        foreach (range(1, 5) as $i) {
+            $review->execute([$android, "a{$i}", 1, "안드 리뷰 {$i}", "2026-11-0{$i} 10:00:00", $i <= 2 ? '확인했습니다' : null, 'google_play']);
+        }
+
+        $detail = $client->get("/apps/{$ios}")->body;
+        $this->assertStringContainsString("href=\"/apps/{$ios}/reviews\"", $detail, '앱 상세에서 전체 보기');
+        $this->assertStringContainsString("/apps/{$ios}/reviews?unanswered=1", $detail);
+
+        $first = $client->get("/apps/{$ios}/reviews");
+        $this->assertSame(200, $first->status);
+        $this->assertSame(30, substr_count($first->body, '<p class="review-body">'), '한 쪽에 30개');
+        $this->assertStringContainsString('1 / 2', $first->body);
+        $this->assertStringContainsString('안드 리뷰 5', $first->body, '최신순');
+        $this->assertStringContainsString('확인했습니다', $first->body, '개발자 답변 표시');
+
+        $second = $client->get("/apps/{$ios}/reviews?page=2")->body;
+        $this->assertSame(10, substr_count($second, '<p class="review-body">'));
+
+        $oneStar = $client->get("/apps/{$ios}/reviews?rating=1")->body;
+        $this->assertSame(5, substr_count($oneStar, '<p class="review-body">'));
+        $this->assertStringNotContainsString('iOS 리뷰', $oneStar);
+
+        $unanswered = $client->get("/apps/{$android}/reviews?unanswered=1")->body;
+        $this->assertSame(3, substr_count($unanswered, '<p class="review-body">'), '답변 주는 출처의 미답변만');
+
+        $ios5 = $client->get("/apps/{$ios}/reviews?platform=ios&rating=5&page=9")->body;
+        $this->assertStringContainsString('2 / 2', $ios5, '없는 쪽은 마지막 쪽으로');
+
+        $this->assertStringContainsString('조건에 맞는 리뷰가 없습니다', $client->get("/apps/{$ios}/reviews?rating=3")->body);
+        $this->assertSame(404, $client->get('/apps/9999/reviews')->status);
+    }
+
     public function testAdminPageAndDeveloperConsoleLinks(): void
     {
         $client = new TestClient();

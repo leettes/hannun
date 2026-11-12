@@ -132,6 +132,7 @@ final class AppFactory
         $router->get('/', [DashboardController::class, 'index']);
         $router->get('/systems/{code}', [SystemController::class, 'show']);
         $router->get('/apps/{id}', [AppDetailController::class, 'show']);
+        $router->get('/apps/{id}/reviews', [AppDetailController::class, 'reviews']);
         $router->get('/architecture', [ArchitectureController::class, 'index']);
         $router->get('/incidents', [IncidentController::class, 'index']);
         $router->get('/incidents/{id}', [IncidentController::class, 'show']);

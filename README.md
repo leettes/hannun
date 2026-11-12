@@ -40,7 +40,7 @@ composer test
 | `/settings/domains/{domain}` | 도메인 정보 수정 (관리자 전용): 서비스 관리의 도메인을 눌러 등록업체·만료일·네임서버·메모를 직접 입력. 입력한 항목은 자동 수집(RDAP·WHOIS) 값보다 우선, 모두 비우면 자동 값으로 되돌림 |
 | `/settings/aws-accounts` | AWS 계정 (관리자 전용): 계정 ID, 별칭, 루트 이메일, 루트 MFA 여부, 메모. 비밀번호·액세스 키는 저장하지 않음 |
 | `/settings/companies` | 관리회사 (관리자 전용): 법인명, 대표자, 사업자번호(검증번호 확인, 중복 불가), 메모. AWS 계정 화면에서 계정마다 관리회사 지정, Vercel 등 AWS 계정이 없는 서비스는 서비스 관리에서 직접 지정(서비스 지정이 우선) |
-| `/apps/{id}` | 앱 상세 (모든 역할): 같은 서비스·같은 이름의 iOS·Android·웹앱을 한 화면에. 기본 정보, 스토어별 정보(번들 ID·버전·업데이트일·개발자 계정, iOS 평점), 다운로드 통계(최근 7·30·90일), 리뷰(별점 분포·최근 리뷰·답변 여부), 서버 & 인프라, 도메인 & SSL, 빠른 작업(관리자 페이지, App Store Connect·Google Play Console, 개발자 계정). iOS 리뷰는 App Store 공개 피드에서 하루 한 번 수집, 다운로드·Android 리뷰는 연동 전이라 빈 영역 ([docs/APPS.md](docs/APPS.md) 5단계) |
+| `/apps/{id}` | 앱 상세 (모든 역할): 같은 서비스·같은 이름의 iOS·Android·웹앱을 한 화면에. 기본 정보, 스토어별 정보(번들 ID·버전·업데이트일·개발자 계정, iOS 평점), 다운로드 통계(최근 7·30·90일), 리뷰(별점 분포·최근 리뷰·답변 여부, '전체 보기'로 `/apps/{id}/reviews` 전체 목록: 30개씩 쪽 나누기, 별점·플랫폼·미답변 필터, 개발자 답변 표시), 서버 & 인프라, 도메인 & SSL, 빠른 작업(관리자 페이지, App Store Connect·Google Play Console, 개발자 계정). iOS 리뷰는 App Store 공개 피드에서 하루 한 번 수집, 다운로드·Android 리뷰는 연동 전이라 빈 영역 ([docs/APPS.md](docs/APPS.md) 5단계) |
 | `/settings/apps` | 앱 (관리자 전용): 서비스별 iOS·Android·웹앱. 번들 ID(플랫폼별 중복 불가), 스토어 주소, 개발자 계정, 버전·업데이트일(iOS 는 cron 이 하루 한 번 App Store 에서 자동 조회, Android 는 직접 입력), 비활성화. 플랫폼 탭 + 관리회사 필터(`?company=ID`/`none`), 스토어 상세 버튼, 아이콘(cron 이 스토어에서 내려받아 `public/app-icons/` 에 저장). 서비스 상세에도 '앱' 섹션 |
 | `/settings/app-accounts` | 개발자 계정 (관리자 전용): Apple Developer·Google Play Console. 팀 ID, 로그인 이메일, 관리회사, Apple 멤버십 만료일(30일 안이면 경고). 비밀번호·키는 저장하지 않음 |
 | `/users` | 사용자 관리 (관리자 전용): 추가, 역할 변경, 비활성화, 비밀번호 재설정 |

@@ -426,6 +426,45 @@ final class AppRegistry
     }
 
     /**
+     * 리뷰 목록 (최신순). 앱 상세의 '리뷰 전체 보기'
+     *
+     * @param list<int> $appIds
+     * @param array{rating?: ?int, platform?: ?string, unanswered?: bool} $filter unanswered 는 답변을 주는 출처(REPLY_SOURCES)의 미답변만
+     * @return array{rows: list<array<string, mixed>>, total: int}
+     */
+    public function reviews(array $appIds, array $filter, int $limit, int $offset): array
+    {
+        if ($appIds === []) {
+            return ['rows' => [], 'total' => 0];
+        }
+        $where = ['r.app_id IN (' . self::placeholders($appIds) . ')'];
+        $params = $appIds;
+        if (($filter['rating'] ?? null) !== null) {
+            $where[] = 'r.rating = ?';
+            $params[] = $filter['rating'];
+        }
+        if (($filter['platform'] ?? null) !== null) {
+            $where[] = 'p.platform = ?';
+            $params[] = $filter['platform'];
+        }
+        if ($filter['unanswered'] ?? false) {
+            $where[] = 'r.developer_reply IS NULL AND r.source IN (' . self::placeholders(self::REPLY_SOURCES) . ')';
+            $params = [...$params, ...self::REPLY_SOURCES];
+        }
+        $from = ' FROM app_store_reviews r JOIN apps p ON p.id = r.app_id WHERE ' . implode(' AND ', $where);
+
+        return [
+            'rows' => $this->query(
+                'SELECT r.id, r.app_id, p.platform, r.rating, r.title, r.content, r.reviewer_name, r.app_version, r.territory,
+                        r.review_created_at, r.developer_reply, r.developer_reply_at, r.source'
+                . $from . ' ORDER BY r.review_created_at DESC, r.id DESC LIMIT ' . max(1, $limit) . ' OFFSET ' . max(0, $offset),
+                $params,
+            ),
+            'total' => (int) $this->query('SELECT COUNT(*) AS n' . $from, $params)[0]['n'],
+        ];
+    }
+
+    /**
      * 앱별 마지막 수집 결과 (app_store_sync_logs)
      *
      * @param list<int> $appIds

@@ -23,6 +23,9 @@ final class AppDetailController extends Controller
 
     private const DEFAULT_PERIOD = 30;
 
+    /** 리뷰 목록 한 쪽에 보이는 개수 */
+    public const REVIEWS_PER_PAGE = 30;
+
     public function __construct(
         View $view,
         MonitoringRepository $data,
@@ -63,6 +66,50 @@ final class AppDetailController extends Controller
             'reviewSummary' => $this->apps->reviewSummary($ids),
             'reviews' => $this->apps->recentReviews($ids, 3),
             'reviewSyncs' => $this->apps->lastSyncs($ids, AppReviewCollector::SYNC_TYPE),
+        ]);
+    }
+
+    /**
+     * 리뷰 전체 목록 (/apps/{id}/reviews). 별점·플랫폼·미답변 필터, 쪽 나누기.
+     */
+    public function reviews(Request $request, string $id): Response
+    {
+        $app = ctype_digit($id) ? $this->apps->app((int) $id) : null;
+        if ($app === null) {
+            return $this->notFound('등록되지 않은 앱입니다.');
+        }
+
+        $siblings = $this->apps->siblings($app);
+        $ids = array_map(static fn (array $a): int => (int) $a['id'], $siblings);
+        $platforms = array_values(array_unique(array_map(static fn (array $a): string => (string) $a['platform'], $siblings)));
+
+        $rating = (int) ($request->query('rating') ?? 0);
+        $platform = (string) ($request->query('platform') ?? '');
+        $filter = [
+            'rating' => $rating >= 1 && $rating <= 5 ? $rating : null,
+            'platform' => in_array($platform, $platforms, true) ? $platform : null,
+            'unanswered' => $request->query('unanswered') === '1',
+        ];
+
+        $page = max(1, (int) ($request->query('page') ?? 1));
+        $result = $this->apps->reviews($ids, $filter, self::REVIEWS_PER_PAGE, ($page - 1) * self::REVIEWS_PER_PAGE);
+        $pages = max(1, (int) ceil($result['total'] / self::REVIEWS_PER_PAGE));
+        if ($page > $pages) {
+            $page = $pages;
+            $result = $this->apps->reviews($ids, $filter, self::REVIEWS_PER_PAGE, ($page - 1) * self::REVIEWS_PER_PAGE);
+        }
+
+        return $this->page('app-reviews', [
+            'title' => $app['name'] . ' · 리뷰',
+            'active' => 'apps',
+            'app' => $app,
+            'platforms' => $platforms,
+            'filter' => $filter,
+            'summary' => $this->apps->reviewSummary($ids),
+            'reviews' => $result['rows'],
+            'total' => $result['total'],
+            'page' => $page,
+            'pages' => $pages,
         ]);
     }
 

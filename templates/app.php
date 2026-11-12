@@ -72,15 +72,7 @@ foreach ($system['http'] ?? [] as $m) {
         $sslExpires = $m['ssl_expires_at'];
     }
 }
-$stars = static function (float $rating): string {
-    $out = '';
-    for ($i = 1; $i <= 5; $i++) {
-        $fill = max(0, min(1, $rating - $i + 1));
-        $out .= '<span class="star" style="--fill: ' . round($fill * 100) . '%" aria-hidden="true">★</span>';
-    }
-
-    return '<span class="stars" title="' . e(number_format($rating, 1)) . '점">' . $out . '</span>';
-};
+$stars = stars(...);
 ?>
 <header class="dash-head app-detail-head">
     <nav class="app-crumb" aria-label="위치">
@@ -369,7 +361,12 @@ $stars = static function (float $rating): string {
     <section class="card app-panel" id="app-reviews">
         <div class="app-panel-head">
             <h3>리뷰</h3>
-            <?php if ($reviewSummary['unanswered'] > 0): ?><span class="badge s-warning">답변 대기 <?= $reviewSummary['unanswered'] ?></span><?php endif ?>
+            <div class="section-actions">
+            <?php if ($reviewSummary['unanswered'] > 0): ?><a class="badge s-warning" href="/apps/<?= (int) $app['id'] ?>/reviews?unanswered=1">답변 대기 <?= $reviewSummary['unanswered'] ?></a><?php endif ?>
+            <?php if ($reviewSummary['count'] > 0): ?>
+                <a class="btn btn-small btn-icon" href="/apps/<?= (int) $app['id'] ?>/reviews">전체 보기 <?= number_format($reviewSummary['count']) ?><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m6 3.5 4.5 4.5L6 12.5"/></svg></a>
+            <?php endif ?>
+            </div>
         </div>
         <?php if ($reviewSummary['count'] === 0): ?>
             <?php if ($storeRating['average'] !== null): ?>
