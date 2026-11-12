@@ -9,6 +9,7 @@
 - 알림 연동 (Uptime Kuma 수집·Webhook, 문자 알림, CloudWatch/SNS): [docs/ALERTS.md](docs/ALERTS.md)
 - 서비스별 앱 관리 기획안 (앱, 개발자 계정, 시안, 작업 단계): [docs/APPS.md](docs/APPS.md)
 - 시스템 구성도 구성 요소 직접 입력 (작업 노트, 다음 할 일): [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+- 회의록·기능 추적 기획안 (직원 전용, 2단계 인증·본문 암호화·감사 로그): [docs/MEETINGS.md](docs/MEETINGS.md)
 
 ## 개발 환경
 
