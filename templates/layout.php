@@ -46,6 +46,7 @@
                     <span class="nav-count"><?= $activeIncidentCount ?></span>
                 <?php endif ?>
             </a>
+            <a class="nav-item<?= $active === 'architecture' ? ' is-active' : '' ?>" href="/architecture">시스템 구성도</a>
             <?php if (isset($currentUser) && $currentUser->can('admin')): ?>
                 <?php
                 $settingsMenu = ['settings' => ['/settings/systems', '서비스 관리'], 'aws-accounts' => ['/settings/aws-accounts', 'AWS 계정'], 'companies' => ['/settings/companies', '관리회사'], 'apps' => ['/settings/apps', '앱'], 'app-accounts' => ['/settings/app-accounts', '개발자 계정'], 'users' => ['/users', '사용자 관리']];

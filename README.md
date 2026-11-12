@@ -8,6 +8,7 @@
 - AWS 설정 (EC2·RDS 지표 조회용 IAM 역할, 비용·권장 구성): [docs/AWS.md](docs/AWS.md)
 - 알림 연동 (Uptime Kuma 수집·Webhook, 문자 알림, CloudWatch/SNS): [docs/ALERTS.md](docs/ALERTS.md)
 - 서비스별 앱 관리 기획안 (앱, 개발자 계정, 시안, 작업 단계): [docs/APPS.md](docs/APPS.md)
+- 시스템 구성도 구성 요소 직접 입력 (작업 노트, 다음 할 일): [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 
 ## 개발 환경
 
@@ -31,6 +32,7 @@ composer test
 |---|---|
 | `/` | 대시보드: 상태 요약, 서비스 카드, 최근 장애. 서비스 상태는 전체 / 관리회사별(`?view=company`, 서비스에 직접 지정한 관리회사, 없으면 AWS 계정의 관리회사 기준) 보기 전환, 고른 보기는 세션에 기억 |
 | `/systems/{code}` | 서비스 상세: 웹/API, EC2, RDS 지표, 장애 이력 |
+| `/architecture` | 시스템 구성도 (모든 역할): 사용자 → 도메인·보안 → 웹 서버 → 데이터 → 외부 연동 계층으로 그린다. 전체 / 서비스별(`?system={code}`) 탭. 점검 상태·도메인·앱·개발자 계정은 DB 값, Nginx·PHP·MySQL 은 공통 스택 표시(버전 미수집), 결제·푸시 등 기록 없는 외부 연동은 '확인 필요'. EC2·RDS 는 `AWS_RESOURCES=true` 이고 등록돼 있을 때 실제 값. 서비스 상세의 '구성도 보기'에서도 연결 |
 | `/incidents` | 장애 센터: 상태별 탭(`?status=open` 등) |
 | `/incidents/{id}` | 장애 상세: 타임라인, 조치 기록 (운영자 이상 저장) |
 | `/settings/systems` | 서비스 관리 (관리자 전용): 서비스 등록(관리자 페이지 주소 포함, 클라우드 기본 AWS, AWS 계정 연결), 웹/API 리소스 등록, 도메인·연결 IP, 비활성화. EC2·RDS 는 `.env` `AWS_RESOURCES=true` 일 때만 표시 |

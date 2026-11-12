@@ -20,7 +20,10 @@ final class PagesTest extends TestCase
         yield 'incidents' => ['/incidents', 200, '장애 센터'];
         yield 'incidents filtered' => ['/incidents?status=open', 200, '장애 센터'];
         yield 'incident' => ['/incidents/6', 200, 'API 헬스체크 실패'];
+        yield 'architecture' => ['/architecture', 200, '시스템 구성도'];
+        yield 'architecture system' => ['/architecture?system=miri', 200, '외부 연동'];
         yield 'unknown system' => ['/systems/nope', 404, '등록되지 않은 서비스'];
+        yield 'architecture unknown system' => ['/architecture?system=nope', 404, '등록되지 않은 서비스'];
         yield 'unknown incident' => ['/incidents/999', 404, '존재하지 않는 장애'];
         yield 'unknown page' => ['/nope', 404, '페이지를 찾을 수 없습니다'];
     }
@@ -46,6 +49,7 @@ final class PagesTest extends TestCase
         yield 'dashboard' => ['/', true];
         yield 'system' => ['/systems/miri', true];
         yield 'incidents' => ['/incidents?status=open', true];
+        yield 'architecture' => ['/architecture', true];
         yield 'incident form' => ['/incidents/6', false];
         yield 'settings' => ['/settings/systems', false];
         yield 'not found' => ['/nope', false];
@@ -117,6 +121,27 @@ final class PagesTest extends TestCase
         $body = $client->get('/systems/miri?range=custom&from=2026-11-02T00:00&to=2026-11-01T00:00')->body;
         $this->assertStringContainsString('끝 시각은 시작 시각보다 뒤여야 합니다.', $body);
         $this->assertStringContainsString('최근 1시간 · 1분 평균', $body);
+    }
+
+    public function testArchitectureShowsLayersPerService(): void
+    {
+        $client = new TestClient();
+        $client->loginAs();
+
+        $all = $client->get('/architecture')->body;
+        $this->assertStringContainsString('class="nav-item is-active" href="/architecture"', $all);
+        $this->assertStringContainsString('href="/architecture?system=miri"', $all);
+        foreach (['사용자', '도메인 · 보안', '웹 서버', '데이터', '외부 연동'] as $layer) {
+            $this->assertStringContainsString('<h2>' . $layer . '</h2>', $all);
+        }
+
+        $one = $client->get('/architecture?system=miri')->body;
+        $this->assertStringContainsString('class="tab is-active" href="/architecture?system=miri"', $one);
+        $this->assertStringContainsString('href="/systems/miri"', $one);
+        $this->assertStringContainsString('Nginx', $one);
+
+        // 서비스 상세에서 구성도로 간다
+        $this->assertStringContainsString('href="/architecture?system=miri"', $client->get('/systems/miri')->body);
     }
 
     public function testSecurityHeadersAreSet(): void
