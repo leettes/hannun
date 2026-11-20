@@ -215,6 +215,8 @@ audit_logs (회의록·기능·권한 관련 모든 행위)
 - 공개 범위를 바꿀 때 비밀번호 재확인. 수정 감사 로그에는 바뀐 항목 이름만(`fields`), 공개 범위 변경은 `meeting.visibility` 로 따로
 - 새 회의록의 참석자 기본값은 작성자 본인, 공개 범위 기본값은 '참석자만'
 - 마크다운: `src/Meetings/Markdown.php` (직접 구현, 외부 라이브러리 없음). 제목은 h3~h5 로 낮춰 화면 제목과 겹치지 않게
+- 기존 회의록 가져오기: `php bin/import-meetings.php --author=이메일 [--visibility=all] [--dry-run] 파일.md …` (`MeetingImporter`). 참석자는 비워 두고 공개 범위 기본 '회의록 권한자 전체'. 시각이 없는 회의는 00:00 으로 저장하고 화면에는 날짜만. 감사 로그에 `meeting.create` (source: import)
+- 2026-11-20: 로컬 DB 에 11/05·11/06·11/11·11/19 회의록(`__bak/회의/*_회의록.md`) 가져옴. 운영 서버는 같은 명령으로 따로 가져와야 한다 (회의록은 config.sql 로 옮겨지지 않음)
 
 ### 3단계 · 기능 추적
 

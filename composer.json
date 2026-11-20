@@ -36,7 +36,8 @@
         "migrate": "php bin/migrate.php",
         "user:create": "php bin/create-user.php",
         "seed:sample": "php bin/seed-sample.php",
-        "reviews:collect": "php bin/collect-reviews.php"
+        "reviews:collect": "php bin/collect-reviews.php",
+        "meetings:import": "php bin/import-meetings.php"
     },
     "config": {
         "sort-packages": true

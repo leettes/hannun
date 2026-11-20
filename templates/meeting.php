@@ -9,7 +9,7 @@ use App\Meetings\MeetingRepository;
 $id = (int) $meeting['id'];
 $deleted = $meeting['deleted_at'] !== null;
 $meta = [
-    e((string) $meeting['held_at']),
+    e(meeting_time((string) $meeting['held_at'])),
     e((string) $meeting['author_name']) . ' 작성',
     e(MeetingRepository::VISIBILITY[$meeting['visibility']] ?? (string) $meeting['visibility']) . ' 공개',
 ];

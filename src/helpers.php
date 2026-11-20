@@ -247,3 +247,11 @@ function stars(float $rating): string
 
     return '<span class="stars" title="' . e(number_format($rating, 1)) . '점">' . $out . '</span>';
 }
+
+/**
+ * 회의 일시. 시각을 모르는 회의(00:00 으로 저장, 가져온 회의록 등)는 날짜만
+ */
+function meeting_time(string $heldAt): string
+{
+    return str_ends_with($heldAt, ' 00:00') ? substr($heldAt, 0, -6) : $heldAt;
+}

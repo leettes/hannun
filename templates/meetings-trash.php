@@ -22,7 +22,7 @@
                 <tbody>
                 <?php foreach ($meetings as $m): ?>
                     <tr>
-                        <td class="nowrap num"><?= e((string) $m['held_at']) ?></td>
+                        <td class="nowrap num"><?= e(meeting_time((string) $m['held_at'])) ?></td>
                         <td class="cell-main"><a href="/meetings/<?= (int) $m['id'] ?>"><?= e((string) $m['title']) ?></a></td>
                         <td class="nowrap num"><?= e((string) $m['deleted_at']) ?></td>
                         <td>
