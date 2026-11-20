@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Features\FeatureRepository;
 use App\Http\Request;
 use App\Http\Response;
 use App\Monitoring\AppRegistry;
@@ -30,6 +31,7 @@ final class AppDetailController extends Controller
         View $view,
         MonitoringRepository $data,
         private readonly AppRegistry $apps,
+        private readonly FeatureRepository $features,
     ) {
         parent::__construct($view, $data);
     }
@@ -66,6 +68,7 @@ final class AppDetailController extends Controller
             'reviewSummary' => $this->apps->reviewSummary($ids),
             'reviews' => $this->apps->recentReviews($ids, 3),
             'reviewSyncs' => $this->apps->lastSyncs($ids, AppReviewCollector::SYNC_TYPE),
+            'features' => $this->features->openForApps($ids),
         ]);
     }
 

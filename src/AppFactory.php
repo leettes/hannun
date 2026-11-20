@@ -20,6 +20,7 @@ use App\Controller\AppDetailController;
 use App\Controller\AwsAccountController;
 use App\Controller\CompanyController;
 use App\Controller\DashboardController;
+use App\Controller\FeatureController;
 use App\Controller\ErrorController;
 use App\Controller\HealthController;
 use App\Controller\IncidentController;
@@ -37,6 +38,7 @@ use App\Http\Middleware\StartSession;
 use App\Http\Middleware\VerifyCsrfToken;
 use App\Http\Request;
 use App\Http\Response;
+use App\Features\FeatureRepository;
 use App\Http\Session;
 use App\Meetings\MeetingRepository;
 use App\Monitoring\DatabaseMonitoringRepository;
@@ -103,9 +105,10 @@ final class AppFactory
         ?Closure $detectHttpKind = null,
         ?AppRegistry $apps = null,
         ?AuditLog $audit = null,
-        ?Closure $meetingConnection = null,
+        ?Closure $connection = null,
     ): App {
-        $meetings = $meetingConnection === null ? null : new MeetingRepository($meetingConnection, Crypto::fromBase64($config['app_key'] ?? null, $config['app_key_previous'] ?? null));
+        // 따로 주입하지 않는 저장소(회의록·기능)가 쓸 DB 연결. 테스트에서는 메모리 DB
+        $db = $connection ?? Database::connection(...);
         $view = new View($root . '/templates');
         // EC2·RDS 화면은 AWS 연동 단계 전까지 숨긴다 (.env AWS_RESOURCES=true 로 표시)
         $view->share('showAwsResources', (bool) ($config['aws_resources'] ?? false));
@@ -120,7 +123,8 @@ final class AppFactory
         $audit ??= new AuditLog(Database::connection(...));
         $crypto = Crypto::fromBase64($config['app_key'] ?? null, $config['app_key_previous'] ?? null);
         $twoFactor = new TwoFactor($users, $audit, $crypto, ($config['meeting_idle_minutes'] ?? 15) * 60);
-        $meetings ??= new MeetingRepository(Database::connection(...), $crypto);
+        $meetings = new MeetingRepository($db, $crypto);
+        $features = new FeatureRepository($db);
         $sns = new SnsMessage(
             array_values(array_filter(array_map('trim', explode(',', $config['sns_topic_arns'] ?? '')))),
             $httpGet ?? SnsMessage::httpGet(...),
@@ -134,16 +138,17 @@ final class AppFactory
             UserController::class => new UserController($view, $data, $users, $audit),
             TwoFactorController::class => new TwoFactorController($view, $data, $users, $twoFactor, $audit),
             AuditLogController::class => new AuditLogController($view, $data, $audit, $users),
-            MeetingController::class => new MeetingController($view, $data, $meetings, $users, $audit),
+            MeetingController::class => new MeetingController($view, $data, $meetings, $users, $audit, $features),
+            FeatureController::class => new FeatureController($view, $data, $features, $meetings, $users),
             ProfileController::class => new ProfileController($view, $data, $users),
             SystemAdminController::class => new SystemAdminController($view, $data, $registry, $users, $detectHttpKind ?? HttpKindDetector::detect(...)),
             AwsAccountController::class => new AwsAccountController($view, $data, $registry),
             CompanyController::class => new CompanyController($view, $data, $registry),
             AppController::class => new AppController($view, $data, $apps, $registry),
             AppAccountController::class => new AppAccountController($view, $data, $apps, $registry),
-            SystemController::class => new SystemController($view, $data, $apps),
+            SystemController::class => new SystemController($view, $data, $apps, $features),
             DashboardController::class => new DashboardController($view, $data, $apps),
-            AppDetailController::class => new AppDetailController($view, $data, $apps),
+            AppDetailController::class => new AppDetailController($view, $data, $apps, $features),
             ArchitectureController::class => new ArchitectureController($view, $data, $apps),
             IncidentController::class => new IncidentController($view, $data, $incidentActions, $users, $notifier),
             default => new $class($view, $data),
@@ -179,6 +184,16 @@ final class AppFactory
         $router->post('/meetings/{id}', [MeetingController::class, 'update']);
         $router->post('/meetings/{id}/delete', [MeetingController::class, 'destroy']);
         $router->post('/meetings/{id}/restore', [MeetingController::class, 'restore']);
+        $router->get('/meetings/{id}/features/new', [FeatureController::class, 'createFromMeeting'], 'operator');
+        $router->post('/meetings/{id}/features', [FeatureController::class, 'storeFromMeeting'], 'operator');
+        $router->get('/features', [FeatureController::class, 'index']);
+        $router->get('/features/new', [FeatureController::class, 'create'], 'operator');
+        $router->post('/features', [FeatureController::class, 'store'], 'operator');
+        $router->get('/features/{id}', [FeatureController::class, 'show']);
+        $router->get('/features/{id}/edit', [FeatureController::class, 'edit'], 'operator');
+        $router->post('/features/{id}', [FeatureController::class, 'update'], 'operator');
+        $router->post('/features/{id}/status', [FeatureController::class, 'changeStatus'], 'operator');
+        $router->post('/features/{id}/notes', [FeatureController::class, 'addNote'], 'operator');
         $router->get(self::HEALTH_PATH, [HealthController::class, 'index']);
         $router->post(self::ALERT_PATHS[0], [AlertController::class, 'uptimeKuma']);
         $router->post(self::ALERT_PATHS[1], [AlertController::class, 'sns']);

@@ -1,6 +1,6 @@
 -- 한눈 기본 설정 데이터. bin/config.php export 가 만든다 (cron 이 설정 변경 시 자동 갱신). 직접 고치지 말 것.
 -- 불러오기: composer migrate && composer config:import
--- 스키마: 022_create_meetings
+-- 스키마: 023_create_features
 
 BEGIN;
 

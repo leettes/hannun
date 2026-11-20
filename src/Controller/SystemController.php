@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Features\FeatureRepository;
 use App\Http\Request;
 use App\Http\Response;
 use App\Monitoring\AppRegistry;
@@ -17,6 +18,7 @@ final class SystemController extends Controller
         View $view,
         MonitoringRepository $data,
         private readonly AppRegistry $apps,
+        private readonly FeatureRepository $features,
     ) {
         parent::__construct($view, $data);
     }
@@ -39,6 +41,7 @@ final class SystemController extends Controller
             'range' => $range,
             'responseTimes' => $this->data->responseTimes($code, $range),
             'apps' => $this->apps->appsForSystem($code),
+            'features' => $this->features->openForSystem((int) $system['id']),
         ]);
     }
 }

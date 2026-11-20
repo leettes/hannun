@@ -1602,3 +1602,15 @@ fieldset.field { border: 0; margin: 0; padding: 0; min-width: 0; }
 @media (max-width: 720px) {
     .form-row-3 { grid-template-columns: 1fr; }
 }
+
+/* 기능 추적 */
+.fstatus { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; white-space: nowrap; background: var(--unknown-weak); color: var(--unknown); }
+.fstatus-planned { background: var(--accent-weak); color: var(--accent); }
+.fstatus-in_progress { background: var(--warning-weak); color: var(--warning); }
+.fstatus-released { background: var(--up-weak); color: var(--up); }
+.fstatus-dropped { background: var(--down-weak); color: var(--down); }
+.decision-picks { margin: 0 0 6px; padding-left: 20px; display: grid; gap: 4px; }
+.tl-note-form { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border); }
+.tl-feature-created::before { border-color: var(--accent); background: var(--accent); }
+.tl-feature-status::before { border-color: var(--warning); }
+.app-panel .card-flush-inner { margin: 0 -20px -18px; }

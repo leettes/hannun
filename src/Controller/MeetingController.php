@@ -6,6 +6,7 @@ namespace App\Controller;
 
 use App\Auth\User;
 use App\Auth\UserProvider;
+use App\Features\FeatureRepository;
 use App\Http\Request;
 use App\Http\Response;
 use App\Meetings\Markdown;
@@ -35,6 +36,7 @@ final class MeetingController extends Controller
         private readonly MeetingRepository $meetings,
         private readonly UserProvider $users,
         private readonly AuditLog $audit,
+        private readonly FeatureRepository $features,
     ) {
         parent::__construct($view, $data);
     }
@@ -123,6 +125,9 @@ final class MeetingController extends Controller
             'bodyHtml' => Markdown::render((string) $meeting['body']),
             'decisionsHtml' => Markdown::render((string) $meeting['decisions']),
             'isAuthor' => $this->canEdit($meeting, $me),
+            'features' => $this->features->forMeeting((int) $meeting['id']),
+            'decisionLines' => FeatureController::decisionLines((string) $meeting['decisions']),
+            'canAddFeature' => $me->can('operator') && $meeting['deleted_at'] === null,
             'flash' => $this->flash($request),
         ]);
     }

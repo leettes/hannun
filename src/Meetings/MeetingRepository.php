@@ -114,6 +114,18 @@ final class MeetingRepository
     }
 
     /**
+     * 볼 수 있는 회의인지만 확인 (복호화하지 않음). 기능 화면의 출처 링크 표시용
+     */
+    public function isVisibleTo(int $id, int $userId): bool
+    {
+        [$where, $params] = $this->visibleWhere($userId);
+        $statement = ($this->connection)()->prepare('SELECT 1 FROM meetings m WHERE m.id = ? AND m.deleted_at IS NULL AND ' . implode(' AND ', $where));
+        $statement->execute([$id, ...$params]);
+
+        return $statement->fetchColumn() !== false;
+    }
+
+    /**
      * @param array{title: string, held_at: string, system_id: ?int, visibility: string, body: string, decisions: string, attendees: list<int>} $values
      */
     public function create(array $values, int $authorId): int

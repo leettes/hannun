@@ -4,6 +4,7 @@ use App\Meetings\MeetingRepository;
 /**
  * @var array<string, mixed> $meeting @var string $bodyHtml @var string $decisionsHtml
  * @var bool $isAuthor @var ?string $flash @var string $csrfToken
+ * @var list<array<string, mixed>> $features 이 회의에서 등록한 기능 @var list<string> $decisionLines @var bool $canAddFeature
  */
 $id = (int) $meeting['id'];
 $deleted = $meeting['deleted_at'] !== null;
@@ -57,6 +58,18 @@ if ($isAuthor && !$deleted) {
     <div class="section-head"><h2>결정 사항</h2></div>
     <div class="card md-body">
         <?= trim((string) $meeting['decisions']) === '' ? '<span class="muted">적은 결정 사항이 없습니다.</span>' : $decisionsHtml /* Markdown::render 가 이스케이프 */ ?>
+    </div>
+</section>
+
+<section class="section">
+    <div class="section-head">
+        <h2>이 회의에서 등록한 기능</h2>
+        <?php if ($canAddFeature): ?>
+            <span class="section-head-aside"><a href="/meetings/<?= $id ?>/features/new">결정 사항을 기능으로 등록</a></span>
+        <?php endif ?>
+    </div>
+    <div class="card card-flush">
+        <?= $this->partial('partials/feature-list', ['features' => $features, 'showSystem' => true, 'empty' => $decisionLines === [] ? '등록한 기능이 없습니다.' : '등록한 기능이 없습니다. 결정 사항 ' . count($decisionLines) . '개를 기능으로 등록할 수 있습니다.']) ?>
     </div>
 </section>
 
