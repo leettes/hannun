@@ -17,12 +17,16 @@ use PDO;
  *   check_keyword: 본문에 이 문자열이 있어야 함 / check_json_key, check_json_value: JSON 값이 같아야 함
  * - 실패하거나 응답이 느리면(Thresholds::HTTP_SLOW_MS) 1초 뒤 한 번 더 요청해서 그 결과로 판단
  * - 두 번 모두 실패하면 장애, 느리면 경고 (반영은 HttpStatusTracker)
+ * - config 의 check_interval(분)이 있으면 마지막 점검 뒤 그만큼 지났을 때만 점검. 없으면 매분
  */
 final class HttpChecker
 {
     public const SOURCE = 'dashboard';
 
     public const TIMEOUT_SECONDS = 30;
+
+    /** cron 이 정각보다 조금 늦게 돌거나 점검에 시간이 걸려도 한 주기를 건너뛰지 않도록 두는 여유 */
+    private const INTERVAL_SLACK_SECONDS = 30;
 
     private readonly HttpStatusTracker $tracker;
 
@@ -47,7 +51,7 @@ final class HttpChecker
     {
         $summary = ['checked' => 0, 'down' => 0, 'slow' => 0, 'opened' => 0, 'resolved' => 0, 'failures' => []];
         $statement = ($this->connection)()->query(
-            "SELECT r.id, r.system_id, r.name, r.identifier, r.config FROM resources r
+            "SELECT r.id, r.system_id, r.name, r.identifier, r.config, r.last_checked_at FROM resources r
              JOIN systems s ON s.id = r.system_id AND s.is_active = 1
              WHERE r.type = 'http' AND r.is_active = 1
              ORDER BY r.id",
@@ -55,6 +59,9 @@ final class HttpChecker
 
         foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
             $config = $row['config'] === null ? [] : (array) json_decode((string) $row['config'], true);
+            if (!self::due($config, $row['last_checked_at'] === null ? null : (string) $row['last_checked_at'], time())) {
+                continue;
+            }
             $result = $this->check((string) $row['identifier'], $config);
             $resource = ['id' => (int) $row['id'], 'system_id' => (int) $row['system_id'], 'name' => (string) $row['name']];
 
@@ -81,6 +88,22 @@ final class HttpChecker
         }
 
         return $summary;
+    }
+
+    /**
+     * 이번 cron 에서 점검할 차례인지
+     *
+     * @param array<string, mixed> $config
+     */
+    public static function due(array $config, ?string $lastCheckedAt, int $now): bool
+    {
+        $minutes = (int) ($config['check_interval'] ?? 1);
+        if ($minutes <= 1 || $lastCheckedAt === null) {
+            return true;
+        }
+        $last = strtotime($lastCheckedAt);
+
+        return $last === false || $now - $last >= $minutes * 60 - self::INTERVAL_SLACK_SECONDS;
     }
 
     /**

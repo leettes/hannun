@@ -233,3 +233,17 @@ function cloud_label(string $provider, ?string $awsAlias = null, ?string $awsAcc
 
     return $awsAccountId === null ? $label . ' (계정 미지정)' : "{$label} · {$awsAlias} (" . aws_account_label($awsAccountId) . ')';
 }
+
+/**
+ * 별점 표시 (소수점은 별을 부분만 채운다). 앱 상세·리뷰 목록 공용
+ */
+function stars(float $rating): string
+{
+    $out = '';
+    for ($i = 1; $i <= 5; $i++) {
+        $fill = max(0, min(1, $rating - $i + 1));
+        $out .= '<span class="star" style="--fill: ' . round($fill * 100) . '%" aria-hidden="true">★</span>';
+    }
+
+    return '<span class="stars" title="' . e(number_format($rating, 1)) . '점">' . $out . '</span>';
+}
