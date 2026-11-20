@@ -3,7 +3,7 @@ use App\Auth\User;
 
 /**
  * @var ?User $user 수정 대상 (null 이면 추가)
- * @var array{email: string, name: string, role: string, active: bool, phone: string, sms_scope: string} $values
+ * @var array{email: string, name: string, role: string, active: bool, phone: string, sms_scope: string, meeting_access: string} $values
  * @var array<string, string> $errors
  * @var string $csrfToken @var User $currentUser
  */
@@ -80,6 +80,28 @@ $error = static fn (string $field): string => isset($errors[$field])
         </div>
         <div class="form-row">
             <label>
+                <span>회의록 권한</span>
+                <select name="meeting_access">
+                    <?php foreach (User::MEETING_ACCESS as $key => $label): ?>
+                        <option value="<?= e($key) ?>"<?= $key === $values['meeting_access'] ? ' selected' : '' ?>><?= e($label) ?></option>
+                    <?php endforeach ?>
+                </select>
+                <span class="muted small">역할과 별개입니다. 권한이 있으면 2단계 인증을 등록해야 회의록을 볼 수 있습니다. 변경은 감사 로그에 남습니다.</span>
+                <?= $error('meeting_access') ?>
+            </label>
+            <?php if (!$isNew): ?>
+                <div class="field">
+                    <span>2단계 인증</span>
+                    <span><?= $user->hasTotp() ? '등록 (' . e(fmt_time($user->totpEnabledAt, 'Y-m-d')) . ')' : '<span class="muted">미등록</span>' ?></span>
+                    <?php if ($user->hasTotp()): ?>
+                        <button class="btn btn-small" type="submit" form="totp-reset">초기화</button>
+                        <span class="muted small">인증 앱을 잃어버렸을 때. 다음에 회의록을 열 때 다시 등록합니다.</span>
+                    <?php endif ?>
+                </div>
+            <?php endif ?>
+        </div>
+        <div class="form-row">
+            <label>
                 <span><?= $isNew ? '비밀번호' : '새 비밀번호' ?></span>
                 <input type="password" name="password" autocomplete="new-password" minlength="<?= User::MIN_PASSWORD_LENGTH ?>"<?= $isNew ? ' required' : ' placeholder="바꾸지 않으려면 비워 두세요"' ?>>
                 <?= $error('password') ?>
@@ -98,4 +120,9 @@ $error = static fn (string $field): string => isset($errors[$field])
             <button class="btn btn-primary" type="submit"><?= $isNew ? '추가' : '저장' ?></button>
         </div>
     </form>
+    <?php if (!$isNew && $user->hasTotp()): ?>
+        <form id="totp-reset" method="post" action="/users/<?= $user->id ?>/2fa-reset" hidden>
+            <input type="hidden" name="_token" value="<?= e($csrfToken) ?>">
+        </form>
+    <?php endif ?>
 </section>

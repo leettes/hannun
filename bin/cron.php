@@ -6,6 +6,7 @@ declare(strict_types=1);
 // 1) 웹/API 점검: UPTIME_KUMA_URL 이 있으면 Uptime Kuma /metrics 수집, 없으면 대시보드가 직접 점검
 // 2) 웹/API 주소의 연결 IP·도메인 등록 정보 갱신  3) 웹/API 구분이 없는 리소스 채우기
 // 4) iOS 앱 버전 조회·리뷰 수집·앱 아이콘 내려받기  5) 못 보낸 문자 알림 재발송  6) 기본 설정 SQL(database/config.sql) 갱신
+// 7) 1년 지난 감사 로그 정리
 
 use App\Alerts\AlertIngestor;
 use App\Alerts\DomainInspector;
@@ -19,6 +20,7 @@ use App\Monitoring\AppReviewCollector;
 use App\Monitoring\AppStoreLookup;
 use App\Monitoring\HttpKindDetector;
 use App\Notifications\Notifier;
+use App\Security\AuditLog;
 
 require dirname(__DIR__) . '/config/env.php';
 
@@ -132,6 +134,16 @@ try {
 $sent = $notifier->dispatch();
 if (array_sum($sent) > 0) {
     $log(sprintf('notifications: 발송 %d, 실패 %d, 건너뜀 %d', $sent['sent'], $sent['failed'], $sent['skipped']));
+}
+
+// 감사 로그: 보관 기간(1년) 지난 기록 정리. 정리한 사실도 기록된다
+try {
+    $purged = (new AuditLog(Database::connection(...)))->purge(time());
+    if ($purged > 0) {
+        $log("audit: 감사 로그 {$purged}건 정리");
+    }
+} catch (Throwable $e) {
+    $log('audit: ' . $e->getMessage());
 }
 
 exit($exit);

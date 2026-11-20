@@ -86,3 +86,15 @@ $error = static fn (string $field): string => isset($errors[$field])
         </form>
     </div>
 </section>
+
+<section class="section narrow">
+    <div class="section-head"><h2>2단계 인증</h2></div>
+    <div class="card">
+        <p><?= $me->hasTotp()
+            ? '등록함 (' . e(fmt_time($me->totpEnabledAt, 'Y-m-d H:i')) . ')'
+            : '<span class="muted">등록하지 않음</span>' ?><?= $me->canReadMeetings() ? ' · 회의록 권한이 있어 필수입니다.' : '' ?></p>
+        <div class="form-actions">
+            <a class="btn" href="/me/2fa"><?= $me->hasTotp() ? '관리' : '등록' ?></a>
+        </div>
+    </div>
+</section>

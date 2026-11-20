@@ -10,7 +10,7 @@ use PDO;
 
 final class DatabaseUserProvider implements UserProvider
 {
-    private const COLUMNS = 'id, email, name, role, is_active, password_hash, last_login_at, phone, sms_scope';
+    private const COLUMNS = 'id, email, name, role, is_active, password_hash, last_login_at, phone, sms_scope, meeting_access, totp_enabled_at';
 
     /**
      * @param Closure(): PDO $connection 처음 사용할 때 연결한다
@@ -65,6 +65,45 @@ final class DatabaseUserProvider implements UserProvider
             ->execute([$email, $name, $passwordHash, $role, User::defaultSmsScope($role)]);
 
         return (int) $pdo->lastInsertId();
+    }
+
+    public function updateMeetingAccess(int $id, string $access): void
+    {
+        ($this->connection)()->prepare('UPDATE users SET meeting_access = ? WHERE id = ?')->execute([$access, $id]);
+    }
+
+    public function totpState(int $id): array
+    {
+        $statement = ($this->connection)()->prepare('SELECT totp_secret, totp_last_step FROM users WHERE id = ? AND totp_enabled_at IS NOT NULL');
+        $statement->execute([$id]);
+        $row = $statement->fetch(PDO::FETCH_ASSOC);
+
+        return [
+            'secret' => $row === false || $row['totp_secret'] === null ? null : (string) $row['totp_secret'],
+            'last_step' => $row === false || $row['totp_last_step'] === null ? null : (int) $row['totp_last_step'],
+        ];
+    }
+
+    public function enableTotp(int $id, string $encryptedSecret, int $step): void
+    {
+        ($this->connection)()
+            ->prepare('UPDATE users SET totp_secret = ?, totp_enabled_at = ?, totp_last_step = ? WHERE id = ?')
+            ->execute([$encryptedSecret, Database::now(), $step, $id]);
+    }
+
+    public function advanceTotpStep(int $id, int $step): bool
+    {
+        $statement = ($this->connection)()->prepare('UPDATE users SET totp_last_step = ? WHERE id = ? AND (totp_last_step IS NULL OR totp_last_step < ?)');
+        $statement->execute([$step, $id, $step]);
+
+        return $statement->rowCount() === 1;
+    }
+
+    public function resetTotp(int $id): void
+    {
+        ($this->connection)()
+            ->prepare('UPDATE users SET totp_secret = NULL, totp_enabled_at = NULL, totp_last_step = NULL WHERE id = ?')
+            ->execute([$id]);
     }
 
     /**

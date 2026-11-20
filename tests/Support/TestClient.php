@@ -22,6 +22,7 @@ use App\Monitoring\AppRegistry;
 use App\Monitoring\SystemRegistry;
 use App\Notifications\Notifier;
 use App\Sample\SampleSeeder;
+use App\Security\AuditLog;
 use PDO;
 
 /**
@@ -34,6 +35,8 @@ final class TestClient
     public readonly InMemoryLoginThrottle $throttle;
     public const ALERT_TOKEN = 'test-alert-token';
     public const SNS_TOPIC = 'arn:aws:sns:ap-northeast-2:111111111111:monitoring-alarms';
+    /** 테스트용 암호화 키 (32바이트) */
+    public const APP_KEY = 'MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=';
 
     public Session $session;
 
@@ -73,6 +76,8 @@ final class TestClient
                 'secure_cookie' => false,
                 'alert_webhook_token' => self::ALERT_TOKEN,
                 'sns_topic_arns' => self::SNS_TOPIC,
+                'app_key' => self::APP_KEY,
+                'meeting_idle_minutes' => 15,
             ],
             $this->users,
             $this->throttle,
@@ -89,6 +94,7 @@ final class TestClient
             new SystemRegistry($this->pdo(...)),
             fn (string $url): ?string => $this->httpKinds[$url] ?? null,
             new AppRegistry($this->pdo(...)),
+            new AuditLog($this->pdo(...)),
         );
     }
 

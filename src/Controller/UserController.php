@@ -9,6 +9,7 @@ use App\Auth\UserProvider;
 use App\Http\Request;
 use App\Http\Response;
 use App\Monitoring\MonitoringRepository;
+use App\Security\AuditLog;
 use App\View;
 
 /**
@@ -23,6 +24,7 @@ final class UserController extends Controller
         View $view,
         MonitoringRepository $data,
         private readonly UserProvider $users,
+        private readonly AuditLog $audit,
     ) {
         parent::__construct($view, $data);
     }
@@ -43,7 +45,7 @@ final class UserController extends Controller
 
     public function create(Request $request): Response
     {
-        return $this->form(null, ['email' => '', 'name' => '', 'role' => 'viewer', 'active' => true, 'phone' => '', 'sms_scope' => User::defaultSmsScope('viewer')]);
+        return $this->form(null, ['email' => '', 'name' => '', 'role' => 'viewer', 'active' => true, 'phone' => '', 'sms_scope' => User::defaultSmsScope('viewer'), 'meeting_access' => 'none']);
     }
 
     public function store(Request $request): Response
@@ -63,6 +65,7 @@ final class UserController extends Controller
 
         $id = $this->users->create($input['email'], $input['name'], $this->hash($request), $input['role']);
         $this->users->updateContact($id, User::normalizePhone($input['phone']), $input['sms_scope']);
+        $this->changeMeetingAccess($request, $id, 'none', $input['meeting_access']);
 
         return $this->done($request, "{$input['name']}({$input['email']}) 계정을 만들었습니다.");
     }
@@ -81,6 +84,7 @@ final class UserController extends Controller
             'active' => $user->active,
             'phone' => $user->phoneLabel() === '-' ? '' : $user->phoneLabel(),
             'sms_scope' => $user->smsScope,
+            'meeting_access' => $user->meetingAccess,
         ]);
     }
 
@@ -112,12 +116,40 @@ final class UserController extends Controller
         $password = $request->input('password') ?? '';
         $this->users->update($user->id, $input['name'], $input['role'], $input['active'], $password === '' ? null : $this->hash($request));
         $this->users->updateContact($user->id, User::normalizePhone($input['phone']), $input['sms_scope']);
+        $this->changeMeetingAccess($request, $user->id, $user->meetingAccess, $input['meeting_access']);
 
         return $this->done($request, "{$input['name']}({$user->email}) 계정을 저장했습니다.");
     }
 
     /**
-     * @return array{name: string, role: string, active: bool, phone: string, sms_scope: string}
+     * 2단계 인증 초기화: 인증 앱을 잃어버린 사용자가 다시 등록하게 한다
+     */
+    public function resetTwoFactor(Request $request, string $id): Response
+    {
+        $user = $this->find($id);
+        if ($user === null) {
+            return $this->notFound('존재하지 않는 사용자입니다.');
+        }
+        if (!$user->hasTotp()) {
+            return $this->done($request, "{$user->name} 님은 2단계 인증을 등록하지 않았습니다.");
+        }
+        $this->users->resetTotp($user->id);
+        $this->audit->recordRequest($request, 'user.totp_reset', 'user', $user->id);
+
+        return $this->done($request, "{$user->name} 님의 2단계 인증을 초기화했습니다. 다음에 회의록을 열 때 다시 등록합니다.");
+    }
+
+    private function changeMeetingAccess(Request $request, int $userId, string $from, string $to): void
+    {
+        if ($from === $to) {
+            return;
+        }
+        $this->users->updateMeetingAccess($userId, $to);
+        $this->audit->recordRequest($request, 'user.meeting_access', 'user', $userId, ['from' => $from, 'to' => $to]);
+    }
+
+    /**
+     * @return array{name: string, role: string, active: bool, phone: string, sms_scope: string, meeting_access: string}
      */
     private function input(Request $request): array
     {
@@ -127,11 +159,12 @@ final class UserController extends Controller
             'active' => $request->input('active') === '1',
             'phone' => trim($request->input('phone') ?? ''),
             'sms_scope' => $request->input('sms_scope') ?? User::defaultSmsScope($request->input('role') ?? ''),
+            'meeting_access' => $request->input('meeting_access') ?? 'none',
         ];
     }
 
     /**
-     * @param array{name: string, role: string, phone: string, sms_scope: string} $input
+     * @param array{name: string, role: string, phone: string, sms_scope: string, meeting_access: string} $input
      * @return array<string, string> 필드 => 오류 메시지
      */
     private function validate(array $input, Request $request, bool $passwordRequired): array
@@ -149,6 +182,9 @@ final class UserController extends Controller
         if (!isset(User::smsScopesFor($input['role'])[$input['sms_scope']])) {
             $errors['sms_scope'] = $input['sms_scope'] === 'all' ? '전체 서비스 알림은 운영자 이상만 받을 수 있습니다.' : '장애 문자 알림을 선택하세요.';
         }
+        if (!isset(User::MEETING_ACCESS[$input['meeting_access']])) {
+            $errors['meeting_access'] = '회의록 권한을 선택하세요.';
+        }
 
         $password = $request->input('password') ?? '';
         if ($password === '' && !$passwordRequired) {
@@ -164,7 +200,7 @@ final class UserController extends Controller
     }
 
     /**
-     * @param array{email: string, name: string, role: string, active: bool, phone: string, sms_scope: string} $values
+     * @param array{email: string, name: string, role: string, active: bool, phone: string, sms_scope: string, meeting_access: string} $values
      * @param array<string, string> $errors
      */
     private function form(?User $user, array $values, array $errors = []): Response

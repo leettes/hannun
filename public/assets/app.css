@@ -843,6 +843,8 @@ h2 { font-size: 16px; }
 
 .form { display: flex; flex-direction: column; gap: 12px; }
 .form label { display: flex; flex-direction: column; gap: 5px; font-size: 13px; font-weight: 550; }
+.form .field { display: flex; flex-direction: column; align-items: flex-start; gap: 5px; font-size: 13px; font-weight: 550; }
+.form .field > span:not(:first-child) { font-weight: 400; }
 /* 폼 안의 읽기 전용 값 (자동 조회 결과 등) */
 .form-static { display: flex; flex-direction: column; gap: 5px; font-size: 13px; }
 .form-static > span { font-weight: 550; }
@@ -1567,3 +1569,9 @@ a.svc-app:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px;
     .arch-band-h { flex-direction: row; align-items: baseline; gap: 8px; padding: 10px 14px; border-radius: var(--radius) var(--radius) 0 0; }
     .arch-node, .arch-row .arch-node { min-width: 0; flex-basis: 100%; }
 }
+
+/* 2단계 인증 등록 */
+.steps { margin: 0 0 12px; padding-left: 20px; display: grid; gap: 4px; font-size: 14px; }
+.totp-qr { width: 200px; height: 200px; margin: 8px 0 12px; padding: 8px; background: #fff; border-radius: 8px; box-sizing: content-box; }
+.totp-qr svg { display: block; width: 100%; height: 100%; }
+.totp-secret { font-size: 13px; letter-spacing: .04em; user-select: all; overflow-wrap: anywhere; }

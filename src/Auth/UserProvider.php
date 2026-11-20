@@ -31,4 +31,20 @@ interface UserProvider
      * 장애 문자 알림 연락처. $phone 은 숫자만 (User::normalizePhone), $smsScope 는 User::SMS_SCOPES 키.
      */
     public function updateContact(int $id, ?string $phone, string $smsScope): void;
+
+    public function updateMeetingAccess(int $id, string $access): void;
+
+    /**
+     * @return array{secret: ?string, last_step: ?int} secret 은 암호화된 값
+     */
+    public function totpState(int $id): array;
+
+    public function enableTotp(int $id, string $encryptedSecret, int $step): void;
+
+    /**
+     * 마지막 통과 단계를 올린다. 같은 단계를 동시에 두 번 쓰는 경우 한쪽만 true
+     */
+    public function advanceTotpStep(int $id, int $step): bool;
+
+    public function resetTotp(int $id): void;
 }

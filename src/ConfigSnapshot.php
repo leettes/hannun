@@ -27,7 +27,7 @@ final class ConfigSnapshot
     public const TABLES = [
         'companies' => [],
         'aws_accounts' => [],
-        'users' => ['last_login_at'],
+        'users' => ['last_login_at', 'meeting_access', 'totp_secret', 'totp_enabled_at', 'totp_last_step'],
         'systems' => [],
         'system_owners' => [],
         'resources' => ['current_status', 'last_checked_at', 'resolved_ips', 'resolved_at', 'domain_info'],

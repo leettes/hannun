@@ -90,6 +90,8 @@ sudo -u www-data php bin/create-user.php --email=admin@example.com --name="관�
 | `UPTIME_KUMA_API_KEY` | Uptime Kuma 설치 후 발급 (5단계) |
 | `ALIGO_*` | 처음엔 `ALIGO_TESTMODE=true` 로 확인 후 `false`. 알리고에 이 서버의 공인 IP 등록 |
 | `APP_PORT` | 운영에선 쓰지 않음 (로컬 docker compose 용) |
+| `APP_KEY` | `php -r 'echo base64_encode(random_bytes(32)), PHP_EOL;'` 결과. 회의록·2단계 인증 비밀값 암호화 키. **DB 백업과 다른 곳(비밀번호 관리자)에 따로 보관**, 잃으면 회의록 복구 불가. 비우면 회의록·2단계 인증 화면이 열리지 않음 |
+| `MEETING_IDLE_MINUTES` | `15` (회의록 화면 유휴 시 2단계 인증 재입력) |
 
 공인 IP 는 재부팅해도 바뀌지 않게 **탄력적 IP(Elastic IP)** 를 붙인다 (알리고 발송 IP 등록에 필요).
 

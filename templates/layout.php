@@ -47,9 +47,12 @@
                 <?php endif ?>
             </a>
             <a class="nav-item<?= $active === 'architecture' ? ' is-active' : '' ?>" href="/architecture">시스템 구성도</a>
+            <?php if ($currentUser?->canReadMeetings()): ?>
+                <a class="nav-item<?= $active === 'meetings' ? ' is-active' : '' ?>" href="/meetings">회의록</a>
+            <?php endif ?>
             <?php if (isset($currentUser) && $currentUser->can('admin')): ?>
                 <?php
-                $settingsMenu = ['settings' => ['/settings/systems', '서비스 관리'], 'aws-accounts' => ['/settings/aws-accounts', 'AWS 계정'], 'companies' => ['/settings/companies', '관리회사'], 'apps' => ['/settings/apps', '앱'], 'app-accounts' => ['/settings/app-accounts', '개발자 계정'], 'users' => ['/users', '사용자 관리']];
+                $settingsMenu = ['settings' => ['/settings/systems', '서비스 관리'], 'aws-accounts' => ['/settings/aws-accounts', 'AWS 계정'], 'companies' => ['/settings/companies', '관리회사'], 'apps' => ['/settings/apps', '앱'], 'app-accounts' => ['/settings/app-accounts', '개발자 계정'], 'users' => ['/users', '사용자 관리'], 'audit-logs' => ['/settings/audit-logs', '감사 로그']];
                 $inSettings = isset($settingsMenu[$active]);
                 ?>
                 <?php /* 설정 하위 메뉴. 지금 보고 있는 화면이 설정 안이면 펼쳐 둔다 */ ?>

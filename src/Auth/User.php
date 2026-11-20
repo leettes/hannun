@@ -23,6 +23,13 @@ final class User
 
     public const MIN_PASSWORD_LENGTH = 6;
 
+    /** 회의록 권한. 역할과 별개이고 기본은 없음 (관리자도 켜야 볼 수 있다). docs/MEETINGS.md */
+    public const MEETING_ACCESS = [
+        'none' => '없음',
+        'read' => '열람',
+        'write' => '열람·작성',
+    ];
+
     private const RANK = ['viewer' => 0, 'operator' => 1, 'admin' => 2];
 
     public function __construct(
@@ -35,6 +42,8 @@ final class User
         public readonly ?DateTimeImmutable $lastLoginAt = null,
         public readonly ?string $phone = null,
         public readonly string $smsScope = 'owned',
+        public readonly string $meetingAccess = 'none',
+        public readonly ?DateTimeImmutable $totpEnabledAt = null,
     ) {
     }
 
@@ -53,6 +62,8 @@ final class User
             isset($row['last_login_at']) ? new DateTimeImmutable($row['last_login_at']) : null,
             $row['phone'] ?? null,
             (string) ($row['sms_scope'] ?? 'owned'),
+            (string) ($row['meeting_access'] ?? 'none'),
+            isset($row['totp_enabled_at']) ? new DateTimeImmutable($row['totp_enabled_at']) : null,
         );
     }
 
@@ -105,6 +116,26 @@ final class User
     public function smsScopeLabel(): string
     {
         return self::SMS_SCOPES[$this->smsScope] ?? $this->smsScope;
+    }
+
+    public function canReadMeetings(): bool
+    {
+        return $this->active && in_array($this->meetingAccess, ['read', 'write'], true);
+    }
+
+    public function canWriteMeetings(): bool
+    {
+        return $this->active && $this->meetingAccess === 'write';
+    }
+
+    public function hasTotp(): bool
+    {
+        return $this->totpEnabledAt !== null;
+    }
+
+    public function meetingAccessLabel(): string
+    {
+        return self::MEETING_ACCESS[$this->meetingAccess] ?? $this->meetingAccess;
     }
 
     public function roleLabel(): string

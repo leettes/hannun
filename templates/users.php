@@ -15,7 +15,7 @@
     <div class="table-wrap">
         <table class="table">
             <thead>
-            <tr><th class="col-main">이름</th><th class="col-email">이메일</th><th class="col-tag">역할</th><th class="col-tag">상태</th><th class="col-phone">휴대폰</th><th class="col-short">문자 알림</th><th class="col-time">마지막 로그인</th></tr>
+            <tr><th class="col-main">이름</th><th class="col-email">이메일</th><th class="col-tag">역할</th><th class="col-tag">상태</th><th class="col-phone">휴대폰</th><th class="col-short">문자 알림</th><th class="col-short">회의록</th><th class="col-time">마지막 로그인</th></tr>
             </thead>
             <tbody>
             <?php foreach ($users as $u): ?>
@@ -29,6 +29,7 @@
                     <td><?= $u->active ? '사용' : '비활성' ?></td>
                     <td class="nowrap"><?= e($u->phoneLabel()) ?></td>
                     <td class="nowrap"><?= $u->phone === null && $u->smsScope !== 'none' ? '<span class="muted">' . e($u->smsScopeLabel()) . ' (번호 없음)</span>' : e($u->smsScopeLabel()) ?></td>
+                    <td class="nowrap"><?= $u->meetingAccess === 'none' ? '<span class="muted">-</span>' : e($u->meetingAccessLabel()) . ($u->hasTotp() ? '' : ' <span class="muted small">(2단계 미등록)</span>') ?></td>
                     <td class="nowrap"><?= e(fmt_time($u->lastLoginAt, 'Y-m-d H:i')) ?></td>
                 </tr>
             <?php endforeach ?>

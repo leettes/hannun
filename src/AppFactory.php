@@ -12,6 +12,7 @@ use App\Auth\LoginThrottle;
 use App\Auth\UserProvider;
 use App\Controller\AlertController;
 use App\Controller\ArchitectureController;
+use App\Controller\AuditLogController;
 use App\Controller\AuthController;
 use App\Controller\AppAccountController;
 use App\Controller\AppController;
@@ -22,13 +23,16 @@ use App\Controller\DashboardController;
 use App\Controller\ErrorController;
 use App\Controller\HealthController;
 use App\Controller\IncidentController;
+use App\Controller\MeetingController;
 use App\Controller\ProfileController;
 use App\Controller\SystemAdminController;
 use App\Monitoring\HttpKindDetector;
 use App\Controller\SystemController;
+use App\Controller\TwoFactorController;
 use App\Controller\UserController;
 use App\Http\Middleware\Authenticate;
 use App\Http\Middleware\IpRestriction;
+use App\Http\Middleware\RequireMeetingAccess;
 use App\Http\Middleware\StartSession;
 use App\Http\Middleware\VerifyCsrfToken;
 use App\Http\Request;
@@ -40,8 +44,11 @@ use App\Monitoring\MonitoringRepository;
 use App\Monitoring\AppRegistry;
 use App\Monitoring\SystemRegistry;
 use App\Notifications\Notifier;
+use App\Security\AuditLog;
 use App\Security\ClientIpResolver;
+use App\Security\Crypto;
 use App\Security\IpAllowList;
+use App\Security\TwoFactor;
 use Closure;
 use Throwable;
 
@@ -54,7 +61,7 @@ final class AppFactory
     private const ALERT_PATHS = ['/api/alerts/uptime-kuma', '/api/alerts/sns'];
 
     /**
-     * @return array{env: string, debug: bool, allowed_ips: string, trusted_proxies: string, idle_minutes: int, secure_cookie: bool, alert_webhook_token?: string, sns_topic_arns?: string, aws_resources?: bool}
+     * @return array{env: string, debug: bool, allowed_ips: string, trusted_proxies: string, idle_minutes: int, secure_cookie: bool, alert_webhook_token?: string, sns_topic_arns?: string, aws_resources?: bool, app_key?: string, app_key_previous?: string, meeting_idle_minutes?: int}
      */
     public static function configFromEnv(): array
     {
@@ -68,11 +75,14 @@ final class AppFactory
             'alert_webhook_token' => Env::get('ALERT_WEBHOOK_TOKEN', ''),
             'sns_topic_arns' => Env::get('SNS_TOPIC_ARNS', ''),
             'aws_resources' => filter_var(Env::get('AWS_RESOURCES', 'false'), FILTER_VALIDATE_BOOL),
+            'app_key' => Env::get('APP_KEY', ''),
+            'app_key_previous' => Env::get('APP_KEY_PREVIOUS', ''),
+            'meeting_idle_minutes' => max(1, (int) Env::get('MEETING_IDLE_MINUTES', '15')),
         ];
     }
 
     /**
-     * @param array{env: string, debug: bool, allowed_ips: string, trusted_proxies: string, idle_minutes: int, secure_cookie: bool, alert_webhook_token?: string, sns_topic_arns?: string, aws_resources?: bool} $config
+     * @param array{env: string, debug: bool, allowed_ips: string, trusted_proxies: string, idle_minutes: int, secure_cookie: bool, alert_webhook_token?: string, sns_topic_arns?: string, aws_resources?: bool, app_key?: string, app_key_previous?: string, meeting_idle_minutes?: int} $config
      * @param (Closure(Request): Session)|null $sessionFactory
      * @param (Closure(string): ?string)|null $httpGet SNS 인증서·구독 확인 URL 조회
      * @param (Closure(string): ?string)|null $detectHttpKind 웹/API 구분을 고르지 않았을 때 URL 로 판단 ('web' | 'api' | null)
@@ -91,6 +101,7 @@ final class AppFactory
         ?SystemRegistry $registry = null,
         ?Closure $detectHttpKind = null,
         ?AppRegistry $apps = null,
+        ?AuditLog $audit = null,
     ): App {
         $view = new View($root . '/templates');
         // EC2·RDS 화면은 AWS 연동 단계 전까지 숨긴다 (.env AWS_RESOURCES=true 로 표시)
@@ -103,6 +114,13 @@ final class AppFactory
         $alerts ??= new AlertIngestor(Database::connection(...), $notifier);
         $registry ??= new SystemRegistry(Database::connection(...));
         $apps ??= new AppRegistry(Database::connection(...));
+        $audit ??= new AuditLog(Database::connection(...));
+        $twoFactor = new TwoFactor(
+            $users,
+            $audit,
+            Crypto::fromBase64($config['app_key'] ?? null, $config['app_key_previous'] ?? null),
+            ($config['meeting_idle_minutes'] ?? 15) * 60,
+        );
         $sns = new SnsMessage(
             array_values(array_filter(array_map('trim', explode(',', $config['sns_topic_arns'] ?? '')))),
             $httpGet ?? SnsMessage::httpGet(...),
@@ -113,7 +131,9 @@ final class AppFactory
             HealthController::class => new HealthController(),
             AlertController::class => new AlertController($alerts, $sns, trim($config['alert_webhook_token'] ?? ''), $notifier),
             AuthController::class => new AuthController($view, $data, $users, $throttle),
-            UserController::class => new UserController($view, $data, $users),
+            UserController::class => new UserController($view, $data, $users, $audit),
+            TwoFactorController::class => new TwoFactorController($view, $data, $users, $twoFactor, $audit),
+            AuditLogController::class => new AuditLogController($view, $data, $audit, $users),
             ProfileController::class => new ProfileController($view, $data, $users),
             SystemAdminController::class => new SystemAdminController($view, $data, $registry, $users, $detectHttpKind ?? HttpKindDetector::detect(...)),
             AwsAccountController::class => new AwsAccountController($view, $data, $registry),
@@ -144,6 +164,12 @@ final class AppFactory
         $router->get('/me', [ProfileController::class, 'show']);
         $router->post('/me/contact', [ProfileController::class, 'updateContact']);
         $router->post('/me/password', [ProfileController::class, 'updatePassword']);
+        $router->get('/me/2fa', [TwoFactorController::class, 'setup']);
+        $router->post('/me/2fa', [TwoFactorController::class, 'enable']);
+        $router->post('/me/2fa/disable', [TwoFactorController::class, 'disable']);
+        $router->get('/2fa', [TwoFactorController::class, 'verifyForm']);
+        $router->post('/2fa', [TwoFactorController::class, 'verify']);
+        $router->get('/meetings', [MeetingController::class, 'index']);
         $router->get(self::HEALTH_PATH, [HealthController::class, 'index']);
         $router->post(self::ALERT_PATHS[0], [AlertController::class, 'uptimeKuma']);
         $router->post(self::ALERT_PATHS[1], [AlertController::class, 'sns']);
@@ -152,6 +178,8 @@ final class AppFactory
         $router->post('/users', [UserController::class, 'store'], 'admin');
         $router->get('/users/{id}', [UserController::class, 'edit'], 'admin');
         $router->post('/users/{id}', [UserController::class, 'update'], 'admin');
+        $router->post('/users/{id}/2fa-reset', [UserController::class, 'resetTwoFactor'], 'admin');
+        $router->get('/settings/audit-logs', [AuditLogController::class, 'index'], 'admin');
         $router->get('/settings/systems', [SystemAdminController::class, 'index'], 'admin');
         $router->get('/settings/systems/new', [SystemAdminController::class, 'create'], 'admin');
         $router->post('/settings/systems', [SystemAdminController::class, 'store'], 'admin');
@@ -202,6 +230,12 @@ final class AppFactory
                 static fn (): Response => $plainPage('요청이 만료되었습니다', '페이지를 새로고침한 뒤 다시 시도하세요.', 419),
             ),
             new Authenticate($users, $view, $config['idle_minutes'] * 60, ['/login', self::HEALTH_PATH, ...self::ALERT_PATHS]),
+            new RequireMeetingAccess(
+                $twoFactor,
+                ['/meetings'],
+                static fn (Request $r): Response => $resolve(ErrorController::class)->meetingForbiddenPage(),
+                static fn (): Response => $plainPage('회의록을 열 수 없습니다', '서버에 암호화 키(APP_KEY)가 설정되지 않았습니다. 관리자에게 문의하세요.', 503),
+            ),
         ];
 
         $isApi = static fn (Request $r): bool => str_starts_with($r->path, '/api/') || $r->path === self::HEALTH_PATH;

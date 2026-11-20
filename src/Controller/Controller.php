@@ -67,4 +67,21 @@ abstract class Controller
 
         return $session instanceof Session ? $session : new Session();
     }
+
+    /**
+     * 로그인·2단계 인증 뒤 돌아갈 주소. 같은 사이트의 경로만 허용 (열린 리다이렉트 방지)
+     */
+    protected static function safeNext(?string $next): string
+    {
+        if ($next === null
+            || !str_starts_with($next, '/')
+            || str_starts_with($next, '//')
+            || str_contains($next, '\\')
+            || preg_match('/[\x00-\x1f]/', $next)
+            || str_starts_with($next, '/login')) {
+            return '/';
+        }
+
+        return $next;
+    }
 }

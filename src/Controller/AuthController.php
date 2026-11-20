@@ -108,21 +108,4 @@ final class AuthController extends Controller
             'notice' => $notice,
         ], 'auth-layout'), $status);
     }
-
-    /**
-     * 로그인 후 이동할 주소는 이 사이트 내부 경로만 허용한다(오픈 리다이렉트 방지).
-     */
-    private function safeNext(?string $next): string
-    {
-        if ($next === null
-            || !str_starts_with($next, '/')
-            || str_starts_with($next, '//')
-            || str_contains($next, '\\')
-            || preg_match('/[\x00-\x1f]/', $next)
-            || str_starts_with($next, '/login')) {
-            return '/';
-        }
-
-        return $next;
-    }
 }
