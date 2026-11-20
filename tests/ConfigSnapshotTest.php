@@ -123,4 +123,28 @@ final class ConfigSnapshotTest extends TestCase
             @unlink($path);
         }
     }
+
+    public function testPasswordAndPhoneStayOutOfTheFile(): void
+    {
+        $pdo = (new TestClient())->pdo();
+        $hash = password_hash('secret-pw', PASSWORD_DEFAULT);
+        $pdo->prepare("UPDATE users SET password_hash = ?, phone = '01012345678' WHERE id = 1")->execute([$hash]);
+        $sql = ConfigSnapshot::export($pdo);
+
+        $this->assertStringNotContainsString($hash, $sql);
+        $this->assertStringNotContainsString('01012345678', $sql);
+        $this->assertStringNotContainsString('$2y$', $sql, '어떤 비밀번호 해시도 없다');
+
+        $pdo->exec("UPDATE users SET name = '바뀐 이름' WHERE id = 1");
+        ConfigSnapshot::import($pdo, $sql);
+        $row = $pdo->query('SELECT name, password_hash, phone FROM users WHERE id = 1')->fetch();
+        $this->assertNotSame('바뀐 이름', $row['name'], '설정 컬럼은 파일 값');
+        $this->assertSame($hash, $row['password_hash'], '기존 비밀번호 유지');
+        $this->assertSame('01012345678', $row['phone'], '기존 연락처 유지');
+
+        $fresh = self::freshDb();
+        ConfigSnapshot::import($fresh, $sql);
+        $this->assertSame('!', $fresh->query('SELECT password_hash FROM users WHERE id = 1')->fetchColumn(), '새 DB 는 로그인 불가 자리값');
+        $this->assertFalse(password_verify('', '!'));
+    }
 }

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 // 관리자 계정 생성
 // php bin/create-user.php --email=admin@example.com --name="홍길동" [--role=admin|operator|viewer]
+// 비밀번호 재설정 (설정 파일로 불러온 계정은 비밀번호가 없다):
+// php bin/create-user.php --email=admin@example.com --reset-password
 // 비밀번호는 실행 중에 입력받는다 (화면에 표시되지 않음).
 
 use App\Auth\DatabaseUserProvider;
@@ -12,18 +14,19 @@ use App\Database;
 
 require dirname(__DIR__) . '/config/env.php';
 
-$options = getopt('', ['email:', 'name:', 'role::']);
+$options = getopt('', ['email:', 'name:', 'role::', 'reset-password']);
 $email = strtolower(trim((string) ($options['email'] ?? '')));
 $name = trim((string) ($options['name'] ?? ''));
 $role = (string) ($options['role'] ?? 'admin');
+$reset = isset($options['reset-password']);
 
 $fail = static function (string $message): never {
     fwrite(STDERR, $message . PHP_EOL);
     exit(1);
 };
 
-if (!filter_var($email, FILTER_VALIDATE_EMAIL) || $name === '') {
-    $fail('사용법: php bin/create-user.php --email=admin@example.com --name="이름" [--role=admin|operator|viewer]');
+if (!filter_var($email, FILTER_VALIDATE_EMAIL) || ($name === '' && !$reset)) {
+    $fail("사용법: php bin/create-user.php --email=admin@example.com --name=\"이름\" [--role=admin|operator|viewer]\n       php bin/create-user.php --email=admin@example.com --reset-password");
 }
 if (!isset(User::ROLES[$role])) {
     $fail('role 은 ' . implode(', ', array_keys(User::ROLES)) . ' 중 하나여야 합니다.');
@@ -53,6 +56,12 @@ if ($prompt('비밀번호 확인: ') !== $password) {
 }
 
 $users = new DatabaseUserProvider(Database::connection(...));
+if ($reset) {
+    $user = $users->findByEmail($email) ?? $fail("없는 이메일입니다: {$email}");
+    $users->update($user->id, $user->name, $user->role, $user->active, password_hash($password, PASSWORD_DEFAULT));
+    echo "비밀번호를 바꿨습니다. #{$user->id} {$email}" . PHP_EOL;
+    exit(0);
+}
 if ($users->findByEmail($email) !== null) {
     $fail("이미 존재하는 이메일입니다: {$email}");
 }

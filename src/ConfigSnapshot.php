@@ -36,6 +36,15 @@ final class ConfigSnapshot
         'domain_overrides' => [],
     ];
 
+    /**
+     * 비밀번호·연락처처럼 git 에 올리면 안 되는 컬럼 => 새 행을 만들 때 넣는 자리값.
+     * 파일에는 자리값만 쓰고, 이미 있는 행을 불러올 때는 덮어쓰지 않는다 (기존 값 유지).
+     * 새 DB 로 불러온 사용자는 비밀번호가 없어 로그인할 수 없다: composer user:create -- --reset-password 로 설정
+     */
+    public const PRIVATE = [
+        'users' => ['password_hash' => '!', 'phone' => null],
+    ];
+
     /** 파일에 없는 행을 지우는 테이블. 앱에서 행을 지우는 곳이고, 다른 데이터가 참조하지 않는다 */
     public const SYNC_DELETE = ['system_owners', 'domain_overrides'];
 
@@ -55,8 +64,10 @@ final class ConfigSnapshot
 
             $lines[] = '';
             $lines[] = "-- {$table} (" . count($rows) . ')';
-            $updates = array_values(array_diff($columns, $keys));
+            $private = self::PRIVATE[$table] ?? [];
+            $updates = array_values(array_diff($columns, $keys, array_keys($private)));
             foreach ($rows as $row) {
+                $row = array_replace($row, array_intersect_key($private, $row));
                 $sql = sprintf('INSERT INTO %s (%s) VALUES (%s)', $table, self::list($columns), implode(', ', array_map(static fn ($v): string => self::literal($pdo, $v), $row)));
                 $sql .= $updates === []
                     ? ' ON CONFLICT DO NOTHING;'
