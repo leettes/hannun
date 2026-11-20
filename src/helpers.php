@@ -255,3 +255,50 @@ function meeting_time(string $heldAt): string
 {
     return str_ends_with($heldAt, ' 00:00') ? substr($heldAt, 0, -6) : $heldAt;
 }
+
+/**
+ * 회의 할 일·태그의 서비스 색 (시안 색상). 모르는 이름은 이름으로 정한 색
+ */
+function service_class(string $label): string
+{
+    $known = ['코이' => 'koi', '미리' => 'miri', '명당' => 'md', '민 커넥트' => 'min', '마케팅' => 'mkt', '공통·신규' => 'etc', '공통' => 'etc'];
+    if (isset($known[$label])) {
+        return 'svc svc-' . $known[$label];
+    }
+    $others = ['s2', 's6', 's8'];
+
+    return 'svc svc-' . $others[crc32($label) % count($others)];
+}
+
+/**
+ * 회의 태그: 서비스로 쓰이는 이름이면 색 칩, 아니면 회색 주제 칩
+ *
+ * @param list<string> $services 서비스로 쓰이는 이름
+ */
+function topic_chip(string $label, array $services): string
+{
+    $class = in_array($label, $services, true) || in_array($label, ['코이', '미리', '명당', '민 커넥트', '마케팅'], true) ? service_class($label) : 'topic';
+
+    return '<span class="' . e($class) . '">' . e($label) . '</span>';
+}
+
+/**
+ * 'Y-m-d H:i' → 요일 (월~일)
+ */
+function weekday_ko(string $dateTime): string
+{
+    $time = strtotime(substr($dateTime, 0, 10));
+
+    return $time === false ? '' : ['일', '월', '화', '수', '목', '금', '토'][(int) date('w', $time)];
+}
+
+/**
+ * 서비스 막대 색 (service_class 와 같은 색)
+ */
+function service_color(string $label): string
+{
+    $map = ['svc-koi' => 'var(--series-1)', 'svc-miri' => 'var(--series-5)', 'svc-md' => 'var(--series-4)', 'svc-min' => 'var(--series-3)',
+        'svc-mkt' => 'var(--series-7)', 'svc-etc' => 'var(--unknown)', 'svc-s2' => 'var(--series-2)', 'svc-s6' => 'var(--series-6)', 'svc-s8' => 'var(--series-8)'];
+
+    return $map[substr(service_class($label), 4)] ?? 'var(--unknown)';
+}

@@ -55,7 +55,7 @@ Vercel 서비스(미리도화)는 `nginx`·`php` 를 입력 칸에서 빼거나 
 
 ## 3. 작업 순서
 
-### 3-1. 마이그레이션 `database/migrations/024_create_system_components.sql` (020~023 은 회의록·기능 추적이 사용. 만들 때 마지막 번호 다음으로)
+### 3-1. 마이그레이션 `database/migrations/025_create_system_components.sql` (020~024 는 회의록·기능 추적이 사용. 만들 때 마지막 번호 다음으로)
 
 ```sql
 -- 서비스별 구성 요소 (시스템 구성도). 설정 데이터라 database/config.sql 에 들어간다.
@@ -113,7 +113,7 @@ CREATE TABLE system_components (
 
 - `TABLES` 에 `'system_components' => []` 추가 (`systems` 다음, 외래 키 순서)
 - `SYNC_DELETE` 에 `'system_components'` 추가 (앱에서 행을 지우므로)
-- 마이그레이션 후 `bin/config.php export` 하면 `config.sql` 의 `-- 스키마:` 줄이 새 마이그레이션 이름으로 바뀐다 (020~023 은 회의록·기능 추적이 사용. 구성 요소는 그때 마지막 번호 다음, 예: `024_create_system_components`). 다른 환경은 `composer migrate` 후 `config:import` 해야 한다 (스키마가 다르면 import 가 거부함)
+- 마이그레이션 후 `bin/config.php export` 하면 `config.sql` 의 `-- 스키마:` 줄이 새 마이그레이션 이름으로 바뀐다 (020~024 는 회의록·기능 추적이 사용. 구성 요소는 그때 마지막 번호 다음, 예: `025_create_system_components`). 다른 환경은 `composer migrate` 후 `config:import` 해야 한다 (스키마가 다르면 import 가 거부함)
 
 ### 3-7. 테스트
 

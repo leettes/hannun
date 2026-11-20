@@ -37,7 +37,8 @@
         "user:create": "php bin/create-user.php",
         "seed:sample": "php bin/seed-sample.php",
         "reviews:collect": "php bin/collect-reviews.php",
-        "meetings:import": "php bin/import-meetings.php"
+        "meetings:import": "php bin/import-meetings.php",
+        "meetings:import-tasks": "php bin/import-meeting-tasks.php"
     },
     "config": {
         "sort-packages": true

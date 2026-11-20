@@ -112,11 +112,12 @@ final class MeetingsTest extends TestCase
 
         $this->as('author');
         $this->assertSame(200, $this->client->get("/meetings/{$id}/edit")->status);
-        $noPassword = $this->client->post("/meetings/{$id}", $this->form(['visibility' => 'private']));
-        $this->assertSame(422, $noPassword->status, '공개 범위 변경은 비밀번호 확인');
+        $noReauth = $this->client->post("/meetings/{$id}", $this->form(['visibility' => 'private']));
+        $this->assertSame(422, $noReauth->status, '공개 범위 변경은 본인 확인 후');
         $this->assertSame('all', $this->visibility($id));
 
-        $saved = $this->client->post("/meetings/{$id}", $this->form(['title' => '고친 제목', 'visibility' => 'private', 'password' => self::PASSWORD]));
+        $this->reauthed();
+        $saved = $this->client->post("/meetings/{$id}", $this->form(['title' => '고친 제목', 'visibility' => 'private']));
         $this->assertSame("/meetings/{$id}", $saved->headers['Location']);
         $this->assertSame('private', $this->visibility($id));
         $this->assertSame(['meeting.create', 'meeting.view', 'meeting.update', 'meeting.visibility'], $this->actions($id));
@@ -133,8 +134,11 @@ final class MeetingsTest extends TestCase
         $this->as('author');
         $id = $this->create(['title' => '지울 회의', 'visibility' => 'all']);
 
+        $this->assertStringStartsWith('/meetings/reauth?', $this->client->post("/meetings/{$id}/delete")->headers['Location'], '삭제는 본인 확인 후');
+        $this->assertSame(0, (int) $this->client->pdo()->query("SELECT COUNT(*) FROM meetings WHERE deleted_at IS NOT NULL")->fetchColumn());
+        $this->reauthed();
         $this->assertSame('/meetings', $this->client->post("/meetings/{$id}/delete")->headers['Location']);
-        $this->assertStringNotContainsString('>지울 회의</a>', $this->client->get('/meetings')->body, '목록에서 빠진다');
+        $this->assertStringNotContainsString('>지울 회의</a>', $this->client->get('/meetings/list')->body, '목록에서 빠진다');
         $this->assertStringContainsString('>지울 회의</a>', $this->client->get('/meetings/trash')->body);
         $this->assertSame(200, $this->client->get("/meetings/{$id}")->status, '작성자는 휴지통에서 연다');
         $this->assertSame(404, $this->client->get("/meetings/{$id}/edit")->status);
@@ -146,7 +150,7 @@ final class MeetingsTest extends TestCase
 
         $this->as('author');
         $this->assertSame("/meetings/{$id}", $this->client->post("/meetings/{$id}/restore")->headers['Location']);
-        $this->assertStringContainsString('>지울 회의</a>', $this->client->get('/meetings')->body);
+        $this->assertStringContainsString('>지울 회의</a>', $this->client->get('/meetings/list')->body);
         $this->assertContains('meeting.delete', $this->actions($id));
         $this->assertContains('meeting.restore', $this->actions($id));
     }
@@ -164,12 +168,12 @@ final class MeetingsTest extends TestCase
         $this->create(['title' => '11월 정기 회의', 'held_at' => '2026-11-03T10:00', 'system_id' => '1', 'visibility' => 'all']);
         $this->create(['title' => '10월 회고 100%', 'held_at' => '2026-10-03T10:00', 'visibility' => 'all']);
 
-        $this->assertStringNotContainsString('10월', $this->client->get('/meetings?q=정기')->body);
-        $this->assertStringContainsString('100%', $this->client->get('/meetings?q=' . rawurlencode('100%'))->body);
-        $this->assertStringNotContainsString('11월', $this->client->get('/meetings?q=' . rawurlencode('0%'))->body, '% 는 와일드카드가 아니라 글자');
-        $this->assertStringNotContainsString('10월', $this->client->get('/meetings?from=2026-11-01')->body);
-        $this->assertStringNotContainsString('10월', $this->client->get('/meetings?system=1')->body);
-        $this->assertStringContainsString('11월 정기 회의', $this->client->get('/meetings?attendee=' . $this->people['author']->id)->body, '작성자는 기본 참석자');
+        $this->assertStringNotContainsString('10월', $this->client->get('/meetings/list?q=정기')->body);
+        $this->assertStringContainsString('100%', $this->client->get('/meetings/list?q=' . rawurlencode('100%'))->body);
+        $this->assertStringNotContainsString('11월', $this->client->get('/meetings/list?q=' . rawurlencode('0%'))->body, '% 는 와일드카드가 아니라 글자');
+        $this->assertStringNotContainsString('10월', $this->client->get('/meetings/list?from=2026-11-01')->body);
+        $this->assertStringNotContainsString('10월', $this->client->get('/meetings/list?system=1')->body);
+        $this->assertStringContainsString('11월 정기 회의', $this->client->get('/meetings/list?attendee=' . $this->people['author']->id)->body, '작성자는 기본 참석자');
     }
 
     public function testSnapshotHasNoMeetingData(): void
@@ -221,6 +225,15 @@ final class MeetingsTest extends TestCase
             $this->client->pdo()->exec("UPDATE users SET totp_secret = 'v1:x', totp_enabled_at = '2026-01-01 00:00:00' WHERE id = {$user->id} AND totp_enabled_at IS NULL");
             $session->set(TwoFactor::SESSION_KEY, ['user' => $user->id, 'activity' => time()]);
         }
+    }
+
+    /**
+     * 6자리 코드 재확인을 마친 상태 (실제 코드 흐름은 MeetingAccessTest)
+     */
+    private function reauthed(): void
+    {
+        $id = (int) $this->client->session->get(Authenticate::USER_KEY);
+        $this->client->session->set(TwoFactor::REAUTH_KEY, ['user' => $id, 'at' => time()]);
     }
 
     /**

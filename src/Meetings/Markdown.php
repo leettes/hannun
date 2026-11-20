@@ -96,7 +96,7 @@ final class Markdown
     /**
      * 한 줄 안의 서식. 먼저 이스케이프하고, 코드·링크는 자리표시로 빼 두었다가 마지막에 되돌린다
      */
-    private static function inline(string $text): string
+    public static function inline(string $text): string
     {
         $tokens = [];
         $hold = static function (string $html) use (&$tokens): string {

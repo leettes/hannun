@@ -30,6 +30,10 @@ final class AuditLog
         'meeting.update' => '회의록 수정',
         'meeting.delete' => '회의록 삭제',
         'meeting.restore' => '회의록 복구',
+        'meeting.tasks' => '할 일 등록',
+        'meeting.export' => '회의록 내보내기',
+        'meeting.transcript' => '녹취 원문 내려받기',
+        'meeting.participant' => '참석자 계정 연결',
         'meeting.visibility' => '공개 범위 변경',
         'audit.purge' => '감사 로그 정리',
     ];
@@ -85,6 +89,26 @@ final class AuditLog
             $request->header('User-Agent'),
             $detail,
         );
+    }
+
+    /**
+     * 한 대상의 기록 (최신순). $actions 를 주면 그 행위만, $exclude 는 뺄 행위
+     *
+     * @param list<string> $exclude
+     * @return list<array<string, mixed>>
+     */
+    public function forTarget(string $type, int $id, int $limit = 50, array $exclude = []): array
+    {
+        $sql = 'SELECT a.*, u.name AS user_name FROM audit_logs a LEFT JOIN users u ON u.id = a.user_id WHERE a.target_type = ? AND a.target_id = ?';
+        $params = [$type, $id];
+        if ($exclude !== []) {
+            $sql .= ' AND a.action NOT IN (' . implode(', ', array_fill(0, count($exclude), '?')) . ')';
+            $params = [...$params, ...$exclude];
+        }
+        $statement = ($this->connection)()->prepare($sql . ' ORDER BY a.id DESC LIMIT ?');
+        $statement->execute([...$params, $limit]);
+
+        return $statement->fetchAll(PDO::FETCH_ASSOC);
     }
 
     /**

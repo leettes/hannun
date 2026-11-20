@@ -19,6 +19,9 @@
     <script src="<?= asset('theme.js') ?>"></script>
     <script src="<?= asset('nav.js') ?>" defer></script>
     <script src="<?= asset('table.js') ?>" defer></script>
+    <?php if ($active === 'meetings'): ?>
+        <script src="<?= asset('meetings.js') ?>" defer></script>
+    <?php endif ?>
     <?php if ($refresh !== null): ?>
         <script src="<?= asset('refresh.js') ?>" defer></script>
     <?php endif ?>

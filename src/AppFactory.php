@@ -25,6 +25,7 @@ use App\Controller\ErrorController;
 use App\Controller\HealthController;
 use App\Controller\IncidentController;
 use App\Controller\MeetingController;
+use App\Controller\MeetingTaskController;
 use App\Controller\ProfileController;
 use App\Controller\SystemAdminController;
 use App\Monitoring\HttpKindDetector;
@@ -41,6 +42,7 @@ use App\Http\Response;
 use App\Features\FeatureRepository;
 use App\Http\Session;
 use App\Meetings\MeetingRepository;
+use App\Meetings\MeetingTaskRepository;
 use App\Monitoring\DatabaseMonitoringRepository;
 use App\Monitoring\IncidentActions;
 use App\Monitoring\MonitoringRepository;
@@ -124,6 +126,7 @@ final class AppFactory
         $crypto = Crypto::fromBase64($config['app_key'] ?? null, $config['app_key_previous'] ?? null);
         $twoFactor = new TwoFactor($users, $audit, $crypto, ($config['meeting_idle_minutes'] ?? 15) * 60);
         $meetings = new MeetingRepository($db, $crypto);
+        $meetingTasks = new MeetingTaskRepository($db, $crypto);
         $features = new FeatureRepository($db);
         $sns = new SnsMessage(
             array_values(array_filter(array_map('trim', explode(',', $config['sns_topic_arns'] ?? '')))),
@@ -138,7 +141,8 @@ final class AppFactory
             UserController::class => new UserController($view, $data, $users, $audit),
             TwoFactorController::class => new TwoFactorController($view, $data, $users, $twoFactor, $audit),
             AuditLogController::class => new AuditLogController($view, $data, $audit, $users),
-            MeetingController::class => new MeetingController($view, $data, $meetings, $users, $audit, $features),
+            MeetingController::class => new MeetingController($view, $data, $meetings, $users, $audit, $features, $meetingTasks, $twoFactor, ($config['meeting_idle_minutes'] ?? 15) * 60),
+            MeetingTaskController::class => new MeetingTaskController($view, $data, $meetingTasks, $users),
             FeatureController::class => new FeatureController($view, $data, $features, $meetings, $users),
             ProfileController::class => new ProfileController($view, $data, $users),
             SystemAdminController::class => new SystemAdminController($view, $data, $registry, $users, $detectHttpKind ?? HttpKindDetector::detect(...)),
@@ -175,15 +179,31 @@ final class AppFactory
         $router->post('/me/2fa/disable', [TwoFactorController::class, 'disable']);
         $router->get('/2fa', [TwoFactorController::class, 'verifyForm']);
         $router->post('/2fa', [TwoFactorController::class, 'verify']);
+        // 회의록: 고정 경로를 {id} 보다 먼저
         $router->get('/meetings', [MeetingController::class, 'index']);
+        $router->get('/meetings/list', [MeetingController::class, 'list']);
         $router->get('/meetings/new', [MeetingController::class, 'create']);
+        $router->get('/meetings/new/transcript', [MeetingController::class, 'createFromTranscript']);
+        $router->post('/meetings/transcript', [MeetingController::class, 'storeFromTranscript']);
         $router->get('/meetings/trash', [MeetingController::class, 'trash']);
+        $router->get('/meetings/reauth', [MeetingController::class, 'reauthForm']);
+        $router->post('/meetings/reauth', [MeetingController::class, 'reauth']);
         $router->post('/meetings', [MeetingController::class, 'store']);
+        $router->get('/meetings/tasks/{id}', [MeetingTaskController::class, 'show']);
+        $router->post('/meetings/tasks/{id}', [MeetingTaskController::class, 'update']);
+        $router->post('/meetings/tasks/{id}/status', [MeetingTaskController::class, 'changeStatus']);
+        $router->post('/meetings/tasks/{id}/assignee', [MeetingTaskController::class, 'assign']);
+        $router->post('/meetings/tasks/{id}/notes', [MeetingTaskController::class, 'addNote']);
         $router->get('/meetings/{id}', [MeetingController::class, 'show']);
         $router->get('/meetings/{id}/edit', [MeetingController::class, 'edit']);
+        $router->get('/meetings/{id}/export', [MeetingController::class, 'export']);
+        $router->get('/meetings/{id}/transcript', [MeetingController::class, 'transcript']);
         $router->post('/meetings/{id}', [MeetingController::class, 'update']);
         $router->post('/meetings/{id}/delete', [MeetingController::class, 'destroy']);
         $router->post('/meetings/{id}/restore', [MeetingController::class, 'restore']);
+        $router->post('/meetings/{id}/participants/{participant}', [MeetingController::class, 'linkParticipant']);
+        $router->post('/meetings/{id}/tasks', [MeetingController::class, 'addTask']);
+        $router->post('/meetings/{id}/tasks/from-decisions', [MeetingController::class, 'registerTasks']);
         $router->get('/meetings/{id}/features/new', [FeatureController::class, 'createFromMeeting'], 'operator');
         $router->post('/meetings/{id}/features', [FeatureController::class, 'storeFromMeeting'], 'operator');
         $router->get('/features', [FeatureController::class, 'index']);

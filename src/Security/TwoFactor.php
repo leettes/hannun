@@ -20,6 +20,9 @@ use RuntimeException;
 final class TwoFactor
 {
     public const SESSION_KEY = 'totp_verified';
+    /** 민감한 작업(내보내기·공개 범위 변경·녹취 내려받기·삭제) 전 재확인. 이 시간 안에는 다시 묻지 않는다 */
+    public const REAUTH_KEY = 'totp_reauth';
+    public const REAUTH_SECONDS = 300;
     public const PENDING_KEY = 'totp_pending';
     public const MAX_FAILURES = 5;
     public const LOCK_SECONDS = 900;
@@ -65,6 +68,32 @@ final class TwoFactor
     public function forget(Session $session): void
     {
         $session->remove(self::SESSION_KEY);
+        $session->remove(self::REAUTH_KEY);
+    }
+
+    /**
+     * 최근 REAUTH_SECONDS 안에 코드를 다시 확인했는지
+     */
+    public function recentlyReauthenticated(Session $session, User $user): bool
+    {
+        $state = $session->get(self::REAUTH_KEY);
+
+        return is_array($state) && ($state['user'] ?? null) === $user->id && time() - (int) ($state['at'] ?? 0) <= self::REAUTH_SECONDS;
+    }
+
+    /**
+     * 재확인: 코드가 맞으면 재확인 시각을 남긴다
+     *
+     * @return self::OK|self::INVALID|self::LOCKED
+     */
+    public function reauthenticate(Request $request, Session $session, User $user, string $code): string
+    {
+        $result = $this->attempt($request, $session, $user, $code);
+        if ($result === self::OK) {
+            $session->set(self::REAUTH_KEY, ['user' => $user->id, 'at' => time()]);
+        }
+
+        return $result;
     }
 
     public function locked(User $user): bool

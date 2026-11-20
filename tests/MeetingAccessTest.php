@@ -78,6 +78,23 @@ final class MeetingAccessTest extends TestCase
         $this->assertSame(1, $this->audits($client, 'auth.totp_fail', $me->id));
     }
 
+    public function testReauthWithRealCode(): void
+    {
+        $client = new TestClient();
+        $me = $this->grant($client, 'viewer', 'write');
+        $secret = $this->enroll($client);
+
+        $form = $client->get('/meetings/reauth?next=/meetings/list&action=' . rawurlencode('내보내기'));
+        $this->assertSame(200, $form->status);
+        $this->assertStringContainsString('내보내기', $form->body);
+        $this->assertSame(422, $client->post('/meetings/reauth', ['code' => Totp::code($secret, Totp::step(time())), 'next' => '/meetings/list'])->status, '등록 때 쓴 코드는 재사용 불가');
+        $this->assertNull($client->session->get(TwoFactor::REAUTH_KEY));
+
+        $ok = $client->post('/meetings/reauth', ['code' => Totp::code($secret, Totp::step(time()) + 1), 'next' => '//evil.example.com']);
+        $this->assertSame('/', $ok->headers['Location'], '돌아갈 주소는 같은 사이트만');
+        $this->assertSame($me->id, $client->session->get(TwoFactor::REAUTH_KEY)['user'] ?? null);
+    }
+
     public function testLockAfterFiveFailures(): void
     {
         $client = new TestClient();
