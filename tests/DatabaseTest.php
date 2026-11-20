@@ -44,7 +44,7 @@ final class DatabaseTest extends TestCase
 
         $this->assertSame([
             'alert_events', 'app_store_accounts', 'app_store_daily_stats', 'app_store_reviews', 'app_store_sync_logs', 'apps', 'audit_logs', 'aws_accounts', 'check_results', 'companies', 'domain_overrides', 'incident_events', 'incidents',
-            'login_attempts', 'notifications', 'resources', 'schema_migrations', 'system_owners', 'systems', 'users',
+            'login_attempts', 'meeting_attendees', 'meetings', 'notifications', 'resources', 'schema_migrations', 'system_owners', 'systems', 'users',
         ], $tables);
         $this->assertSame([], (new Migrator($this->pdo, dirname(__DIR__) . '/database/migrations'))->run());
     }

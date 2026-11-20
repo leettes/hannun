@@ -1575,3 +1575,30 @@ a.svc-app:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px;
 .totp-qr { width: 200px; height: 200px; margin: 8px 0 12px; padding: 8px; background: #fff; border-radius: 8px; box-sizing: content-box; }
 .totp-qr svg { display: block; width: 100%; height: 100%; }
 .totp-secret { font-size: 13px; letter-spacing: .04em; user-select: all; overflow-wrap: anywhere; }
+
+/* 회의록 */
+.form-row-3 { grid-template-columns: repeat(3, 1fr); }
+fieldset.field { border: 0; margin: 0; padding: 0; min-width: 0; }
+.check-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 6px 12px; }
+.form label.check { flex-direction: row; align-items: center; gap: 6px; font-weight: 400; }
+.mono-input { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; line-height: 1.55; }
+.inline-form { display: inline; margin-left: 8px; }
+.md-body { line-height: 1.65; overflow-wrap: anywhere; }
+.md-body > :first-child { margin-top: 0; }
+.md-body > :last-child { margin-bottom: 0; }
+.md-body h3, .md-body h4, .md-body h5 { margin: 18px 0 8px; line-height: 1.35; }
+.md-body h3 { font-size: 17px; }
+.md-body h4 { font-size: 15px; }
+.md-body h5 { font-size: 14px; }
+.md-body p, .md-body ul, .md-body ol, .md-body pre, .md-body blockquote { margin: 0 0 10px; }
+.md-body ul, .md-body ol { padding-left: 22px; }
+.md-body code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .92em; background: var(--bg); border: 1px solid var(--border); border-radius: 4px; padding: 0 4px; }
+.md-body pre { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; overflow-x: auto; }
+.md-body pre code { border: 0; padding: 0; background: none; }
+.md-body blockquote { border-left: 3px solid var(--border); padding-left: 12px; color: var(--muted); }
+.md-body hr { border: 0; border-top: 1px solid var(--border); margin: 14px 0; }
+.md-check { color: var(--muted); }
+.md-check.is-done { color: var(--up); }
+@media (max-width: 720px) {
+    .form-row-3 { grid-template-columns: 1fr; }
+}

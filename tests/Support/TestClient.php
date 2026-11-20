@@ -95,6 +95,7 @@ final class TestClient
             fn (string $url): ?string => $this->httpKinds[$url] ?? null,
             new AppRegistry($this->pdo(...)),
             new AuditLog($this->pdo(...)),
+            $this->pdo(...),
         );
     }
 

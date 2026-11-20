@@ -38,6 +38,7 @@ use App\Http\Middleware\VerifyCsrfToken;
 use App\Http\Request;
 use App\Http\Response;
 use App\Http\Session;
+use App\Meetings\MeetingRepository;
 use App\Monitoring\DatabaseMonitoringRepository;
 use App\Monitoring\IncidentActions;
 use App\Monitoring\MonitoringRepository;
@@ -102,7 +103,9 @@ final class AppFactory
         ?Closure $detectHttpKind = null,
         ?AppRegistry $apps = null,
         ?AuditLog $audit = null,
+        ?Closure $meetingConnection = null,
     ): App {
+        $meetings = $meetingConnection === null ? null : new MeetingRepository($meetingConnection, Crypto::fromBase64($config['app_key'] ?? null, $config['app_key_previous'] ?? null));
         $view = new View($root . '/templates');
         // EC2·RDS 화면은 AWS 연동 단계 전까지 숨긴다 (.env AWS_RESOURCES=true 로 표시)
         $view->share('showAwsResources', (bool) ($config['aws_resources'] ?? false));
@@ -115,12 +118,9 @@ final class AppFactory
         $registry ??= new SystemRegistry(Database::connection(...));
         $apps ??= new AppRegistry(Database::connection(...));
         $audit ??= new AuditLog(Database::connection(...));
-        $twoFactor = new TwoFactor(
-            $users,
-            $audit,
-            Crypto::fromBase64($config['app_key'] ?? null, $config['app_key_previous'] ?? null),
-            ($config['meeting_idle_minutes'] ?? 15) * 60,
-        );
+        $crypto = Crypto::fromBase64($config['app_key'] ?? null, $config['app_key_previous'] ?? null);
+        $twoFactor = new TwoFactor($users, $audit, $crypto, ($config['meeting_idle_minutes'] ?? 15) * 60);
+        $meetings ??= new MeetingRepository(Database::connection(...), $crypto);
         $sns = new SnsMessage(
             array_values(array_filter(array_map('trim', explode(',', $config['sns_topic_arns'] ?? '')))),
             $httpGet ?? SnsMessage::httpGet(...),
@@ -134,6 +134,7 @@ final class AppFactory
             UserController::class => new UserController($view, $data, $users, $audit),
             TwoFactorController::class => new TwoFactorController($view, $data, $users, $twoFactor, $audit),
             AuditLogController::class => new AuditLogController($view, $data, $audit, $users),
+            MeetingController::class => new MeetingController($view, $data, $meetings, $users, $audit),
             ProfileController::class => new ProfileController($view, $data, $users),
             SystemAdminController::class => new SystemAdminController($view, $data, $registry, $users, $detectHttpKind ?? HttpKindDetector::detect(...)),
             AwsAccountController::class => new AwsAccountController($view, $data, $registry),
@@ -170,6 +171,14 @@ final class AppFactory
         $router->get('/2fa', [TwoFactorController::class, 'verifyForm']);
         $router->post('/2fa', [TwoFactorController::class, 'verify']);
         $router->get('/meetings', [MeetingController::class, 'index']);
+        $router->get('/meetings/new', [MeetingController::class, 'create']);
+        $router->get('/meetings/trash', [MeetingController::class, 'trash']);
+        $router->post('/meetings', [MeetingController::class, 'store']);
+        $router->get('/meetings/{id}', [MeetingController::class, 'show']);
+        $router->get('/meetings/{id}/edit', [MeetingController::class, 'edit']);
+        $router->post('/meetings/{id}', [MeetingController::class, 'update']);
+        $router->post('/meetings/{id}/delete', [MeetingController::class, 'destroy']);
+        $router->post('/meetings/{id}/restore', [MeetingController::class, 'restore']);
         $router->get(self::HEALTH_PATH, [HealthController::class, 'index']);
         $router->post(self::ALERT_PATHS[0], [AlertController::class, 'uptimeKuma']);
         $router->post(self::ALERT_PATHS[1], [AlertController::class, 'sns']);

@@ -29,6 +29,7 @@ final class AuditLog
         'meeting.create' => '회의록 작성',
         'meeting.update' => '회의록 수정',
         'meeting.delete' => '회의록 삭제',
+        'meeting.restore' => '회의록 복구',
         'meeting.visibility' => '공개 범위 변경',
         'audit.purge' => '감사 로그 정리',
     ];

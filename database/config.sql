@@ -1,6 +1,6 @@
 -- 한눈 기본 설정 데이터. bin/config.php export 가 만든다 (cron 이 설정 변경 시 자동 갱신). 직접 고치지 말 것.
 -- 불러오기: composer migrate && composer config:import
--- 스키마: 021_create_audit_logs
+-- 스키마: 022_create_meetings
 
 BEGIN;
 
@@ -19,7 +19,7 @@ INSERT INTO aws_accounts (id, account_id, alias, default_region, role_arn, exter
 
 -- users (8)
 INSERT INTO users (id, email, name, password_hash, role, is_active, created_at, updated_at, phone, notify_sms, sms_scope) VALUES (4, 'admin@example.com', '관리자', '!', 'admin', 1, '2026-11-03 13:15:34', '2026-11-05 11:15:13', NULL, 0, 'all') ON CONFLICT (id) DO UPDATE SET email = excluded.email, name = excluded.name, role = excluded.role, is_active = excluded.is_active, created_at = excluded.created_at, updated_at = excluded.updated_at, notify_sms = excluded.notify_sms, sms_scope = excluded.sms_scope;
-INSERT INTO users (id, email, name, password_hash, role, is_active, created_at, updated_at, phone, notify_sms, sms_scope) VALUES (5, 'leettes@gmail.com', '이승환', '!', 'admin', 1, '2026-11-04 17:01:08', '2026-11-19 16:25:02', NULL, 1, 'all') ON CONFLICT (id) DO UPDATE SET email = excluded.email, name = excluded.name, role = excluded.role, is_active = excluded.is_active, created_at = excluded.created_at, updated_at = excluded.updated_at, notify_sms = excluded.notify_sms, sms_scope = excluded.sms_scope;
+INSERT INTO users (id, email, name, password_hash, role, is_active, created_at, updated_at, phone, notify_sms, sms_scope) VALUES (5, 'leettes@gmail.com', '이승환', '!', 'admin', 1, '2026-11-04 17:01:08', '2026-11-20 18:36:23', NULL, 1, 'all') ON CONFLICT (id) DO UPDATE SET email = excluded.email, name = excluded.name, role = excluded.role, is_active = excluded.is_active, created_at = excluded.created_at, updated_at = excluded.updated_at, notify_sms = excluded.notify_sms, sms_scope = excluded.sms_scope;
 INSERT INTO users (id, email, name, password_hash, role, is_active, created_at, updated_at, phone, notify_sms, sms_scope) VALUES (6, 'choi.al17@gmail.com', '최알렉산더', '!', 'operator', 1, '2026-11-04 20:57:51', '2026-11-04 21:02:49', NULL, 1, 'owned') ON CONFLICT (id) DO UPDATE SET email = excluded.email, name = excluded.name, role = excluded.role, is_active = excluded.is_active, created_at = excluded.created_at, updated_at = excluded.updated_at, notify_sms = excluded.notify_sms, sms_scope = excluded.sms_scope;
 INSERT INTO users (id, email, name, password_hash, role, is_active, created_at, updated_at, phone, notify_sms, sms_scope) VALUES (7, 'gamekyo2@gmail.com', '장성진', '!', 'operator', 1, '2026-11-04 20:57:51', '2026-11-04 21:02:49', NULL, 1, 'owned') ON CONFLICT (id) DO UPDATE SET email = excluded.email, name = excluded.name, role = excluded.role, is_active = excluded.is_active, created_at = excluded.created_at, updated_at = excluded.updated_at, notify_sms = excluded.notify_sms, sms_scope = excluded.sms_scope;
 INSERT INTO users (id, email, name, password_hash, role, is_active, created_at, updated_at, phone, notify_sms, sms_scope) VALUES (8, 'khighwind84@gmail.com', '김현수', '!', 'operator', 1, '2026-11-04 20:57:51', '2026-11-04 21:02:49', NULL, 1, 'owned') ON CONFLICT (id) DO UPDATE SET email = excluded.email, name = excluded.name, role = excluded.role, is_active = excluded.is_active, created_at = excluded.created_at, updated_at = excluded.updated_at, notify_sms = excluded.notify_sms, sms_scope = excluded.sms_scope;
