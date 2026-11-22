@@ -302,3 +302,13 @@ function service_color(string $label): string
 
     return $map[substr(service_class($label), 4)] ?? 'var(--unknown)';
 }
+
+/**
+ * 회의 날짜 짧게: '2026-11-11 10:00' → '11/11 (수)'
+ */
+function meeting_day(string $heldAt): string
+{
+    $time = strtotime(substr($heldAt, 0, 10));
+
+    return $time === false ? '' : date('n/j', $time) . ' (' . weekday_ko($heldAt) . ')';
+}

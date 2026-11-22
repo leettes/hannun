@@ -358,7 +358,7 @@ final class FeatureController extends Controller
             'title' => $feature === null ? '빌드업 등록' : '빌드업 수정',
             'active' => $meeting === null ? 'features' : 'meetings',
             'feature' => $feature,
-            'meeting' => $meeting === null ? null : ['id' => (int) $meeting['id'], 'title' => (string) $meeting['title']],
+            'meeting' => $meeting === null ? null : ['id' => (int) $meeting['id'], 'title' => (string) $meeting['title'], 'held_at' => (string) $meeting['held_at']],
             'decisionLines' => $meeting === null ? [] : self::decisionLines((string) $meeting['decisions']),
             'values' => $values,
             'errors' => $errors,

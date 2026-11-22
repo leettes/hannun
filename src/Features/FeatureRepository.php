@@ -186,7 +186,15 @@ final class FeatureRepository
                 $values['target_version'], $values['assignee_user_id'], $meetingId, $incidentId, $meetingTaskId, $userId, $now, $now,
             ]);
             $id = (int) $pdo->lastInsertId();
-            $this->event($pdo, $id, $userId, 'created', null, $values['status'], $meetingTaskId !== null ? '회의 할 일에서 올림' : ($meetingId !== null ? '회의에서 등록' : null));
+            $from = null;
+            if ($meetingId !== null) {
+                // 타임라인에 언제 회의에서 나온 건지 남긴다 (회의 제목은 넣지 않음)
+                $heldAt = $pdo->prepare('SELECT held_at FROM meetings WHERE id = ?');
+                $heldAt->execute([$meetingId]);
+                $when = $heldAt->fetchColumn();
+                $from = ($when === false ? '' : meeting_day((string) $when) . ' ') . ($meetingTaskId !== null ? '회의 할 일에서 올림' : '회의에서 등록');
+            }
+            $this->event($pdo, $id, $userId, 'created', null, $values['status'], $from);
             $pdo->commit();
         } catch (\Throwable $e) {
             $pdo->rollBack();
@@ -314,12 +322,13 @@ final class FeatureRepository
     {
         $statement = ($this->connection)()->prepare(
             "SELECT f.*, s.name AS system_name, s.code AS system_code, a.name AS app_name, a.platform AS app_platform,
-                    au.name AS assignee_name, cu.name AS creator_name
+                    au.name AS assignee_name, cu.name AS creator_name, mt.held_at AS meeting_held_at
              FROM features f
              JOIN systems s ON s.id = f.system_id
              LEFT JOIN apps a ON a.id = f.app_id
              LEFT JOIN users au ON au.id = f.assignee_user_id
              LEFT JOIN users cu ON cu.id = f.created_by_user_id
+             LEFT JOIN meetings mt ON mt.id = f.meeting_id
              {$tail}"
         );
         $statement->execute($params);

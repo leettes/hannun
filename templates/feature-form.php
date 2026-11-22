@@ -4,7 +4,7 @@ use App\Monitoring\AppRegistry;
 
 /**
  * @var ?array<string, mixed> $feature 수정 대상 (새로 등록하면 null)
- * @var ?array{id: int, title: string} $meeting 회의에서 등록할 때
+ * @var ?array{id: int, title: string, held_at: string} $meeting 회의에서 등록할 때
  * @var ?array{id: int, item: string, service: string} $task 회의 할 일에서 올릴 때
  * @var list<string> $decisionLines
  * @var array{system_id: ?int, app_id: ?int, title: string, description: string, target_version: string, assignee_user_id: ?int, status: string} $values
@@ -28,7 +28,10 @@ $cancel = $meeting !== null ? '/meetings/' . $meeting['id'] : ($isNew ? '/buildu
 ]) ?>
 
 <?php if ($task !== null): ?>
-    <div class="alert alert-info narrow" role="status">회의 할 일 <strong><?= e($task['item']) ?></strong> <span class="muted">(<?= e($task['service']) ?>)</span> 을(를) 빌드업에 올립니다. 올린 뒤에는 할 일 상태가 빌드업 상태를 따라갑니다.</div>
+    <div class="alert alert-info narrow" role="status"><?= e(meeting_day($meeting['held_at'])) ?> 회의의 할 일 <strong><?= e($task['item']) ?></strong> <span class="muted">(<?= e($task['service']) ?>)</span> 을(를) 빌드업에 올립니다. 올린 뒤에는 할 일 상태가 빌드업 상태를 따라갑니다.</div>
+<?php endif ?>
+<?php if ($meeting !== null && $task === null): ?>
+    <div class="alert alert-info narrow" role="status"><?= e(meeting_day($meeting['held_at'])) ?> 회의에서 나온 결정을 빌드업에 올립니다. 빌드업에는 회의 날짜가 함께 남습니다.</div>
 <?php endif ?>
 <?php if ($meeting !== null && $decisionLines !== [] && $task === null): ?>
     <section class="card">

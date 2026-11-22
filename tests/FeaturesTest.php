@@ -184,7 +184,8 @@ final class FeaturesTest extends TestCase
         foreach (['outsider', 'viewer'] as $name) {
             $this->as($name);
             $page = $this->client->get("/buildup/{$featureId}")->body;
-            $this->assertStringContainsString('회의에서 등록됨', $page, $name);
+            $this->assertStringContainsString('11/20 (금) 회의', $page, $name . ': 회의 날짜는 누구나');
+            $this->assertStringContainsString('회의록은 권한이 있는 사람만 봅니다', $page, $name);
             $this->assertStringNotContainsString("href=\"/meetings/{$meetingId}\"", $page, $name);
         }
         $this->as('outsider');

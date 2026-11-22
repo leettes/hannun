@@ -107,6 +107,7 @@ final class MeetingTasksTest extends TestCase
         $this->assertStringContainsString('DB에 저장된 번역 요청 언어 확인</textarea>', $form->body, '할 일이 설명으로');
         $this->assertMatchesRegularExpression('/<option value="\d+" selected>코이<\/option>/', $form->body, '서비스 이름이 같은 시스템');
         $this->assertStringContainsString('모든 역할이 봅니다', $form->body);
+        $this->assertStringContainsString('11/20 (금) 회의의 할 일', $form->body, '언제 회의인지');
 
         $systemId = (int) $this->client->pdo()->query("SELECT id FROM systems WHERE name = '코이'")->fetchColumn();
         $created = $this->client->post("/meetings/{$id}/buildup", [
@@ -116,6 +117,10 @@ final class MeetingTasksTest extends TestCase
         $featureId = (int) basename($created->headers['Location']);
         $this->assertSame([$taskId, $id], array_map('intval', $this->client->pdo()->query("SELECT meeting_task_id, meeting_id FROM features WHERE id = {$featureId}")->fetch(\PDO::FETCH_NUM)));
         $this->assertStringContainsString('빌드업 · 확정', $this->client->get('/meetings')->body, '할 일 표에 빌드업 상태');
+        $detail = $this->client->get("/buildup/{$featureId}")->body;
+        $this->assertStringContainsString('11/20 (금) 회의 할 일', $detail, '빌드업 상세에 회의 날짜');
+        $this->assertStringContainsString('11/20 (금) 회의 할 일에서 올림', $detail, '타임라인에도');
+        $this->assertStringContainsString('11/20 (금) 회의</div>', $this->client->get('/buildup')->body, '목록에도');
         $this->assertSame(404, $this->client->get("/meetings/{$id}/buildup/new?task={$taskId}")->status, '한 번만 올린다');
 
         $this->assertSame(422, $this->client->post("/meetings/tasks/{$taskId}/status", ['status' => 'done'])->status, '상태는 빌드업에서');

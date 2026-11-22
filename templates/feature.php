@@ -124,7 +124,12 @@ $eventLabel = static fn (array $ev): string => match ($ev['type']) {
             <dt>담당자</dt><dd><?= e((string) ($f['assignee_name'] ?? '-')) ?></dd>
             <dt>등록</dt><dd><?= e((string) ($f['creator_name'] ?? '-')) ?> · <?= e(substr((string) $f['created_at'], 0, 10)) ?></dd>
             <?php if ($f['meeting_id'] !== null): ?>
-                <dt>출처</dt><dd><?= $meetingLink !== null ? '<a class="plain" href="' . e($meetingLink) . '">회의록 보기</a>' : '회의에서 등록됨' ?></dd>
+                <dt>출처</dt>
+                <dd>
+                    <?= e(($f['meeting_held_at'] !== null ? meeting_day((string) $f['meeting_held_at']) . ' ' : '') . ($f['meeting_task_id'] !== null ? '회의 할 일' : '회의')) ?>
+                    <?php if ($f['meeting_held_at'] !== null && substr((string) $f['meeting_held_at'], 11, 5) !== '00:00'): ?><span class="muted small"><?= e(substr((string) $f['meeting_held_at'], 11, 5)) ?></span><?php endif ?>
+                    <div class="small"><?= $meetingLink !== null ? '<a class="plain" href="' . e($meetingLink) . '">회의록 보기</a>' : '<span class="muted">회의록은 권한이 있는 사람만 봅니다</span>' ?></div>
+                </dd>
             <?php endif ?>
             <?php if ($f['incident_id'] !== null): ?>
                 <dt>관련 장애</dt><dd><a class="plain" href="/incidents/<?= (int) $f['incident_id'] ?>">#<?= (int) $f['incident_id'] ?></a></dd>
