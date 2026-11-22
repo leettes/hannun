@@ -35,6 +35,7 @@ final class AuditLog
         'meeting.transcript' => '녹취 원문 내려받기',
         'meeting.participant' => '참석자 계정 연결',
         'meeting.visibility' => '공개 범위 변경',
+        'feature.delete' => '빌드업 삭제',
         'audit.purge' => '감사 로그 정리',
     ];
 

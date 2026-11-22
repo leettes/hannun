@@ -21,12 +21,12 @@ $eventLabel = static fn (array $ev): string => match ($ev['type']) {
 };
 ?>
 <?= $this->partial('partials/page-head', [
-    'crumb' => '기능',
-    'crumbHref' => '/features',
+    'crumb' => '빌드업',
+    'crumbHref' => '/buildup',
     'heading' => e((string) $f['title']),
     'sub' => e((string) $f['system_name']) . ($f['app_name'] !== null ? ' · ' . e($f['app_name'] . ' ' . (AppRegistry::PLATFORMS[$f['app_platform']] ?? '')) : ''),
     'aside' => '<span class="fstatus fstatus-' . e((string) $f['status']) . '">' . e(FeatureRepository::statusLabel((string) $f['status'])) . '</span>'
-        . ($canEdit ? ' <a class="btn" href="/features/' . $id . '/edit">수정</a>' : ''),
+        . ($canEdit ? ' <a class="btn" href="/buildup/' . $id . '/edit">수정</a> <a class="btn btn-danger-ghost" href="/buildup/' . $id . '/delete">삭제</a>' : ''),
 ]) ?>
 
 <?php if ($flash !== null): ?>
@@ -50,7 +50,7 @@ $eventLabel = static fn (array $ev): string => match ($ev['type']) {
                 <?php if ($next === []): ?>
                     <p class="muted">바꿀 수 있는 상태가 없습니다.</p>
                 <?php else: ?>
-                    <form class="form" method="post" action="/features/<?= $id ?>/status">
+                    <form class="form" method="post" action="/buildup/<?= $id ?>/status">
                         <input type="hidden" name="_token" value="<?= e($csrfToken) ?>">
                         <div class="form-row">
                             <label>
@@ -99,7 +99,7 @@ $eventLabel = static fn (array $ev): string => match ($ev['type']) {
                 <?php endforeach ?>
             </ol>
             <?php if ($canEdit): ?>
-                <form class="form tl-note-form" method="post" action="/features/<?= $id ?>/notes">
+                <form class="form tl-note-form" method="post" action="/buildup/<?= $id ?>/notes">
                     <input type="hidden" name="_token" value="<?= e($csrfToken) ?>">
                     <label>
                         <span>메모 남기기</span>

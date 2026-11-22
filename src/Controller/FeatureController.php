@@ -10,14 +10,16 @@ use App\Features\FeatureRepository;
 use App\Http\Request;
 use App\Http\Response;
 use App\Meetings\MeetingRepository;
+use App\Meetings\MeetingTaskRepository;
 use App\Monitoring\MonitoringRepository;
+use App\Security\AuditLog;
 use App\View;
 
 /**
- * 기능 추적 (docs/MEETINGS.md 3단계).
+ * 빌드업: 서비스·앱에 들어갈 개발 건을 요청부터 배포까지 추적 (docs/MEETINGS.md 3단계. 코드 이름은 feature).
  *
  * - 목록·상세는 모든 역할, 등록·수정·상태 변경·메모는 운영자 이상 (경로에서 지정)
- * - 회의에서 등록(/meetings/{id}/features/…)은 회의록 관문(권한·2단계 인증)을 거친다
+ * - 회의에서 등록(/meetings/{id}/buildup/…)은 회의록 관문(권한·2단계 인증)을 거친다
  * - 출처 회의 링크는 그 회의를 볼 수 있는 사람에게만. 아니면 '회의에서 등록됨'만 보인다
  */
 final class FeatureController extends Controller
@@ -31,6 +33,8 @@ final class FeatureController extends Controller
         private readonly FeatureRepository $features,
         private readonly MeetingRepository $meetings,
         private readonly UserProvider $users,
+        private readonly AuditLog $audit,
+        private readonly MeetingTaskRepository $tasks,
     ) {
         parent::__construct($view, $data);
     }
@@ -49,7 +53,7 @@ final class FeatureController extends Controller
         $result = $this->features->search($filter, $page);
 
         return $this->page('features', [
-            'title' => '기능',
+            'title' => '빌드업',
             'active' => 'features',
             'filter' => $filter,
             'features' => $result['rows'],
@@ -69,7 +73,7 @@ final class FeatureController extends Controller
     {
         $feature = $this->find($id);
         if ($feature === null) {
-            return $this->notFound('등록되지 않은 기능입니다.');
+            return $this->notFound('등록되지 않은 빌드업 항목입니다.');
         }
 
         return $this->detail($request, $feature);
@@ -100,11 +104,11 @@ final class FeatureController extends Controller
         }
         $id = $this->features->create(self::stored($values) + ['status' => $values['status']], $this->me($request)->id);
 
-        return Response::redirect('/features/' . $id);
+        return Response::redirect('/buildup/' . $id);
     }
 
     /**
-     * 회의 결정 사항에서 등록 (/meetings/{id}/features/new?line=N)
+     * 회의 결정 사항에서 등록 (/meetings/{id}/buildup/new?line=N)
      */
     public function createFromMeeting(Request $request, string $id): Response
     {
@@ -116,19 +120,25 @@ final class FeatureController extends Controller
         if ($meeting === null) {
             return $this->notFound('회의록이 없거나 볼 수 있는 권한이 없습니다.');
         }
+        // 회의 할 일에서 올리기 (?task=ID): 이름·내용·서비스를 채운다. 비고는 회의록 밖으로 옮기지 않는다
+        $task = $this->meetingTask($request->query('task'), $meeting, $me);
+        if ($task === false) {
+            return $this->notFound('이 회의의 할 일이 아니거나 이미 빌드업에 올렸습니다.');
+        }
         $lines = self::decisionLines((string) $meeting['decisions']);
         $line = $request->query('line');
-        $title = $line !== null && ctype_digit($line) ? ($lines[(int) $line] ?? '') : '';
+        $title = $task !== null ? (string) $task['item'] : ($line !== null && ctype_digit($line) ? ($lines[(int) $line] ?? '') : '');
+        $system = $task !== null ? $this->systemNamed((string) $task['service']) : null;
 
         return $this->form(null, $meeting, [
-            'system_id' => $meeting['system_id'] === null ? null : (int) $meeting['system_id'],
+            'system_id' => $system ?? ($meeting['system_id'] === null ? null : (int) $meeting['system_id']),
             'app_id' => null,
             'title' => mb_substr($title, 0, 200),
-            'description' => '',
+            'description' => $task !== null ? mb_substr((string) $task['task'], 0, 5000) : '',
             'target_version' => '',
-            'assignee_user_id' => null,
-            'status' => 'planned',
-        ]);
+            'assignee_user_id' => $task !== null && $task['assignee_user_id'] !== null ? (int) $task['assignee_user_id'] : null,
+            'status' => $task !== null && $task['status'] === 'doing' ? 'in_progress' : 'planned',
+        ], task: $task);
     }
 
     public function storeFromMeeting(Request $request, string $id): Response
@@ -141,22 +151,29 @@ final class FeatureController extends Controller
         if ($meeting === null) {
             return $this->notFound('회의록이 없거나 볼 수 있는 권한이 없습니다.');
         }
+        $task = $this->meetingTask($request->input('meeting_task_id'), $meeting, $me);
+        if ($task === false) {
+            return $this->notFound('이 회의의 할 일이 아니거나 이미 빌드업에 올렸습니다.');
+        }
         $values = $this->input($request);
         $errors = $this->validate($values, creating: true);
         if ($errors !== []) {
-            return $this->form(null, $meeting, $values, $errors);
+            return $this->form(null, $meeting, $values, $errors, $task);
         }
-        $featureId = $this->features->create(self::stored($values) + ['status' => $values['status']], $me->id, (int) $meeting['id']);
-        $this->session($request)->set(self::FLASH_KEY, '회의에서 기능을 등록했습니다.');
+        $featureId = $this->features->create(self::stored($values) + ['status' => $values['status']], $me->id, (int) $meeting['id'], null, $task === null ? null : (int) $task['id']);
+        if ($task !== null) {
+            $this->tasks->syncFromBuildup((int) $task['id'], FeatureRepository::TASK_STATUS[$values['status']], $me->id);
+        }
+        $this->session($request)->set(self::FLASH_KEY, $task !== null ? '회의 할 일을 빌드업에 올렸습니다. 이제 상태는 빌드업에서 바꿉니다.' : '회의 결정을 빌드업에 올렸습니다.');
 
-        return Response::redirect('/features/' . $featureId);
+        return Response::redirect('/buildup/' . $featureId);
     }
 
     public function edit(Request $request, string $id): Response
     {
         $feature = $this->find($id);
         if ($feature === null) {
-            return $this->notFound('등록되지 않은 기능입니다.');
+            return $this->notFound('등록되지 않은 빌드업 항목입니다.');
         }
 
         return $this->form($feature, null, [
@@ -174,7 +191,7 @@ final class FeatureController extends Controller
     {
         $feature = $this->find($id);
         if ($feature === null) {
-            return $this->notFound('등록되지 않은 기능입니다.');
+            return $this->notFound('등록되지 않은 빌드업 항목입니다.');
         }
         $values = $this->input($request);
         $errors = $this->validate($values, creating: false);
@@ -192,16 +209,16 @@ final class FeatureController extends Controller
             '담당자' => $stored['assignee_user_id'] !== $int($feature['assignee_user_id']),
         ]));
         $this->features->update((int) $feature['id'], $stored, $this->me($request)->id, $changed);
-        $this->session($request)->set(self::FLASH_KEY, $changed === [] ? '바뀐 내용이 없습니다.' : '기능을 저장했습니다.');
+        $this->session($request)->set(self::FLASH_KEY, $changed === [] ? '바뀐 내용이 없습니다.' : '빌드업 항목을 저장했습니다.');
 
-        return Response::redirect('/features/' . $feature['id']);
+        return Response::redirect('/buildup/' . $feature['id']);
     }
 
     public function changeStatus(Request $request, string $id): Response
     {
         $feature = $this->find($id);
         if ($feature === null) {
-            return $this->notFound('등록되지 않은 기능입니다.');
+            return $this->notFound('등록되지 않은 빌드업 항목입니다.');
         }
         $to = $request->input('status') ?? '';
         $version = trim($request->input('released_version') ?? '');
@@ -220,16 +237,20 @@ final class FeatureController extends Controller
             return $this->detail($request, $feature, $errors, ['status' => $to, 'released_version' => $version, 'note' => $note]);
         }
         $this->features->changeStatus((int) $feature['id'], (string) $feature['status'], $to, $this->me($request)->id, $to === 'released' ? $version : null, $note === '' ? null : $note);
+        if ($feature['meeting_task_id'] !== null) {
+            // 회의 할 일에서 올린 항목: 할 일 상태도 따라간다
+            $this->tasks->syncFromBuildup((int) $feature['meeting_task_id'], FeatureRepository::TASK_STATUS[$to], $this->me($request)->id);
+        }
         $this->session($request)->set(self::FLASH_KEY, '상태를 ' . FeatureRepository::statusLabel($to) . '(으)로 바꿨습니다.');
 
-        return Response::redirect('/features/' . $feature['id']);
+        return Response::redirect('/buildup/' . $feature['id']);
     }
 
     public function addNote(Request $request, string $id): Response
     {
         $feature = $this->find($id);
         if ($feature === null) {
-            return $this->notFound('등록되지 않은 기능입니다.');
+            return $this->notFound('등록되지 않은 빌드업 항목입니다.');
         }
         $note = trim($request->input('note') ?? '');
         if ($note === '' || mb_strlen($note) > 1000) {
@@ -237,7 +258,49 @@ final class FeatureController extends Controller
         }
         $this->features->addNote((int) $feature['id'], $this->me($request)->id, $note);
 
-        return Response::redirect('/features/' . $feature['id'] . '#timeline');
+        return Response::redirect('/buildup/' . $feature['id'] . '#timeline');
+    }
+
+    /**
+     * 삭제 확인 화면
+     */
+    public function confirmDelete(Request $request, string $id): Response
+    {
+        $feature = $this->find($id);
+        if ($feature === null) {
+            return $this->notFound('등록되지 않은 빌드업 항목입니다.');
+        }
+
+        return $this->page('feature-delete', [
+            'title' => '빌드업 삭제',
+            'active' => 'features',
+            'feature' => $feature,
+            'eventCount' => count($this->features->events((int) $feature['id'])),
+        ]);
+    }
+
+    /**
+     * 삭제 (운영자 이상). 타임라인도 지우므로 감사 로그에 무엇을 지웠는지 남긴다
+     */
+    public function destroy(Request $request, string $id): Response
+    {
+        $feature = $this->find($id);
+        if ($feature === null) {
+            return $this->notFound('등록되지 않은 빌드업 항목입니다.');
+        }
+        if (($request->input('confirm') ?? '') !== 'delete') {
+            return Response::redirect('/buildup/' . $feature['id'] . '/delete');
+        }
+        $this->features->delete((int) $feature['id']);
+        $this->audit->recordRequest($request, 'feature.delete', 'feature', (int) $feature['id'], [
+            'title' => (string) $feature['title'],
+            'system' => (string) $feature['system_name'],
+            'status' => (string) $feature['status'],
+            'meeting' => $feature['meeting_id'] === null ? null : (int) $feature['meeting_id'],
+        ]);
+        $this->session($request)->set(self::FLASH_KEY, "'{$feature['title']}' 을(를) 빌드업에서 삭제했습니다.");
+
+        return Response::redirect('/buildup');
     }
 
     /**
@@ -288,10 +351,11 @@ final class FeatureController extends Controller
      * @param array<string, mixed> $values
      * @param array<string, string> $errors
      */
-    private function form(?array $feature, ?array $meeting, array $values, array $errors = []): Response
+    private function form(?array $feature, ?array $meeting, array $values, array $errors = [], ?array $task = null): Response
     {
         return $this->page('feature-form', [
-            'title' => $feature === null ? '기능 등록' : '기능 수정',
+            'task' => $task === null ? null : ['id' => (int) $task['id'], 'item' => (string) $task['item'], 'service' => (string) $task['service']],
+            'title' => $feature === null ? '빌드업 등록' : '빌드업 수정',
             'active' => $meeting === null ? 'features' : 'meetings',
             'feature' => $feature,
             'meeting' => $meeting === null ? null : ['id' => (int) $meeting['id'], 'title' => (string) $meeting['title']],
@@ -339,7 +403,7 @@ final class FeatureController extends Controller
             }
         }
         if ($values['title'] === '' || mb_strlen($values['title']) > 200) {
-            $errors['title'] = '기능 이름을 200자 이내로 입력하세요.';
+            $errors['title'] = '이름을 200자 이내로 입력하세요.';
         }
         if (mb_strlen($values['description']) > 5000) {
             $errors['description'] = '설명은 5,000자 이내로 입력하세요.';
@@ -389,6 +453,39 @@ final class FeatureController extends Controller
         $meeting = ctype_digit($id) ? $this->meetings->findFor((int) $id, $me->id) : null;
 
         return $meeting === null || $meeting['deleted_at'] !== null ? null : $meeting;
+    }
+
+    /**
+     * 회의 할 일 (올리기 대상). 값이 없으면 null, 이 회의의 볼 수 있는 할 일이 아니거나 이미 올렸으면 false
+     *
+     * @param array<string, mixed> $meeting
+     * @return array<string, mixed>|false|null
+     */
+    private function meetingTask(?string $id, array $meeting, User $me): array|false|null
+    {
+        if ($id === null || $id === '') {
+            return null;
+        }
+        $task = ctype_digit($id) ? $this->tasks->findFor((int) $id, $me->id) : null;
+        if ($task === null || (int) $task['meeting_id'] !== (int) $meeting['id'] || $task['buildup_id'] !== null) {
+            return false;
+        }
+
+        return $task;
+    }
+
+    /**
+     * 할 일의 서비스 이름과 같은 시스템 (코이·미리 등). 마케팅·공통은 없으니 직접 고른다
+     */
+    private function systemNamed(string $name): ?int
+    {
+        foreach ($this->features->systems() as $system) {
+            if ($system['name'] === $name) {
+                return $system['id'];
+            }
+        }
+
+        return null;
     }
 
     private function flash(Request $request): ?string

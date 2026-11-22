@@ -1813,3 +1813,5 @@ dialog.reauth h3 { margin: 0 0 6px; }
 
 .att-details { margin-top: 8px; }
 .att-details summary { cursor: pointer; color: var(--accent); }
+.task-promote { display: inline-block; margin-top: 4px; font-size: 12px; }
+.task-promote::before { content: "↗ "; }

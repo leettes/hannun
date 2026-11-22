@@ -109,6 +109,16 @@ $back = '/meetings/tasks/' . $id;
             <dt>상태</dt><dd><?= $this->partial('partials/task-controls', ['t' => $t, 'canWrite' => $canWrite, 'staff' => $staffOptions, 'back' => $back, 'part' => 'status']) ?><?= $error('status') ?></dd>
             <dt>담당</dt><dd><?= $this->partial('partials/task-controls', ['t' => $t, 'canWrite' => $canWrite, 'staff' => $staffOptions, 'back' => $back, 'part' => 'person']) ?><?= $error('assignee') ?>
                 <?php if ($t['assignee_label'] !== null): ?><div class="muted small">회의에서: <?= e((string) $t['assignee_label']) ?></div><?php endif ?></dd>
+            <dt>빌드업</dt>
+            <dd>
+                <?php if ($t['buildup_id'] !== null): ?>
+                    <a class="plain" href="/buildup/<?= (int) $t['buildup_id'] ?>">#<?= (int) $t['buildup_id'] ?> · <?= e(App\Features\FeatureRepository::statusLabel((string) $t['buildup_status'])) ?></a>
+                    <div class="muted small">상태는 빌드업을 따라갑니다</div>
+                <?php else: ?>
+                    <span class="muted">올리지 않음</span>
+                    <div><?= $this->partial('partials/task-controls', ['t' => $t, 'canWrite' => $canWrite, 'staff' => $staffOptions, 'back' => $back, 'part' => 'promote']) ?></div>
+                <?php endif ?>
+            </dd>
             <dt>회의</dt><dd><a class="plain" href="/meetings/<?= (int) $t['meeting_id'] ?>#tasks"><?= e(meeting_time((string) $t['meeting_held_at'])) ?></a></dd>
             <dt>완료</dt><dd><?= e((string) ($t['done_at'] ?? '-')) ?></dd>
             <dt>등록</dt><dd><?= e(substr((string) $t['created_at'], 0, 16)) ?></dd>

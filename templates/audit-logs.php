@@ -21,6 +21,7 @@ $target = static fn (array $log): string => match ($log['target_type']) {
     null => '',
     'user' => '사용자 #' . $log['target_id'],
     'meeting' => '회의록 #' . $log['target_id'],
+    'feature' => '빌드업 #' . $log['target_id'],
     default => $log['target_type'] . ' #' . $log['target_id'],
 };
 ?>

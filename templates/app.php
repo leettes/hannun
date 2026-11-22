@@ -10,7 +10,7 @@ use App\Monitoring\Thresholds;
  *
  * @var array<string, mixed> $app 연 앱 @var list<array<string, mixed>> $siblings 플랫폼별 앱 (자기 포함)
  * @var ?array<string, mixed> $system 서비스 (MonitoringRepository::system)
- * @var list<array<string, mixed>> $features 이 앱(플랫폼별 포함)의 진행 중 기능
+ * @var list<array<string, mixed>> $features 이 앱(플랫폼별 포함)의 진행 중 빌드업
  * @var array{average: ?float, count: int, platforms: array<string, array{average: float, count: int}>} $storeRating
  * @var int $days @var string $from @var string $to
  * @var list<array{date: string, platform: string, downloads: ?int, active_users: ?int}> $daily
@@ -527,16 +527,16 @@ $stars = stars(...);
 
     <section class="card app-panel app-panel-full" id="app-features">
         <div class="app-panel-head">
-            <h3>진행 중 기능</h3>
+            <h3>진행 중 빌드업</h3>
             <span class="muted small">
-                <a href="/features?app=<?= (int) $app['id'] ?>">전체</a>
+                <a href="/buildup?app=<?= (int) $app['id'] ?>">전체</a>
                 <?php if (isset($currentUser) && $currentUser->can('operator')): ?>
-                    · <a href="/features/new?system=<?= (int) $app['system_id'] ?>&amp;app=<?= (int) $app['id'] ?>">기능 등록</a>
+                    · <a href="/buildup/new?system=<?= (int) $app['system_id'] ?>&amp;app=<?= (int) $app['id'] ?>">빌드업 등록</a>
                 <?php endif ?>
             </span>
         </div>
         <div class="card-flush-inner">
-            <?= $this->partial('partials/feature-list', ['features' => $features, 'showSystem' => false, 'empty' => '진행 중인 기능이 없습니다.']) ?>
+            <?= $this->partial('partials/feature-list', ['features' => $features, 'showSystem' => false, 'empty' => '진행 중인 빌드업이 없습니다.']) ?>
         </div>
     </section>
 

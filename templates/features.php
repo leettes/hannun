@@ -18,15 +18,15 @@ $url = static function (array $change) use ($filter): string {
         unset($q['status']);
     }
 
-    return '/features' . ($q === [] ? '' : '?' . http_build_query($q));
+    return '/buildup' . ($q === [] ? '' : '?' . http_build_query($q));
 };
 $open = array_sum(array_intersect_key($counts, array_flip(FeatureRepository::OPEN)));
 $current = $filter['status'] ?? 'all';
 ?>
 <?= $this->partial('partials/page-head', [
-    'heading' => '기능',
-    'sub' => '서비스·앱별 기능을 요청부터 배포까지 추적합니다. 등록·상태 변경은 운영자 이상.',
-    'aside' => $canEdit ? '<a class="btn btn-primary" href="/features/new">기능 등록</a>' : '',
+    'heading' => '빌드업',
+    'sub' => '서비스·앱에 들어갈 것을 차곡차곡 쌓아 요청부터 배포까지 추적합니다. 등록·상태 변경·삭제는 운영자 이상.',
+    'aside' => $canEdit ? '<a class="btn btn-primary" href="/buildup/new">빌드업 등록</a>' : '',
 ]) ?>
 
 <?php if ($flash !== null): ?>
@@ -42,7 +42,7 @@ $current = $filter['status'] ?? 'all';
 </nav>
 
 <section class="card">
-    <form class="form" method="get" action="/features">
+    <form class="form" method="get" action="/buildup">
         <input type="hidden" name="status" value="<?= e($current) ?>">
         <div class="form-row form-row-3">
             <label>
@@ -74,14 +74,14 @@ $current = $filter['status'] ?? 'all';
             </label>
         </div>
         <div class="form-actions">
-            <a class="btn" href="/features">초기화</a>
+            <a class="btn" href="/buildup">초기화</a>
             <button class="btn btn-primary" type="submit">조회</button>
         </div>
     </form>
 </section>
 
 <div class="card card-flush">
-    <?= $this->partial('partials/feature-list', ['features' => $features, 'showSystem' => true, 'empty' => '조건에 맞는 기능이 없습니다.']) ?>
+    <?= $this->partial('partials/feature-list', ['features' => $features, 'showSystem' => true, 'empty' => '조건에 맞는 빌드업이 없습니다.']) ?>
     <?php if ($pages > 1): ?>
         <nav class="pager" aria-label="쪽">
             <?php if ($page > 1): ?><a class="btn btn-small" href="<?= e($url(['page' => $page - 1])) ?>">← 이전</a><?php else: ?><span class="btn btn-small is-disabled" aria-disabled="true">← 이전</span><?php endif ?>

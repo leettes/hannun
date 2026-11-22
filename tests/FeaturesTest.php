@@ -49,25 +49,25 @@ final class FeaturesTest extends TestCase
         $id = $this->create();
 
         $this->as('viewer');
-        $this->assertSame(200, $this->client->get('/features')->status);
-        $detail = $this->client->get("/features/{$id}");
+        $this->assertSame(200, $this->client->get('/buildup')->status);
+        $detail = $this->client->get("/buildup/{$id}");
         $this->assertSame(200, $detail->status);
         $this->assertStringNotContainsString('/status"', $detail->body, '상태 변경 폼 없음');
-        $this->assertSame(403, $this->client->get('/features/new')->status);
-        $this->assertSame(403, $this->client->post('/features', $this->form())->status);
-        $this->assertSame(403, $this->client->post("/features/{$id}/status", ['status' => 'planned'])->status);
-        $this->assertSame(403, $this->client->post("/features/{$id}/notes", ['note' => 'x'])->status);
-        $this->assertSame(403, $this->client->get("/features/{$id}/edit")->status);
+        $this->assertSame(403, $this->client->get('/buildup/new')->status);
+        $this->assertSame(403, $this->client->post('/buildup', $this->form())->status);
+        $this->assertSame(403, $this->client->post("/buildup/{$id}/status", ['status' => 'planned'])->status);
+        $this->assertSame(403, $this->client->post("/buildup/{$id}/notes", ['note' => 'x'])->status);
+        $this->assertSame(403, $this->client->get("/buildup/{$id}/edit")->status);
     }
 
     public function testCreateValidation(): void
     {
         $this->as('operator');
-        $this->assertSame(422, $this->client->post('/features', $this->form(['system_id' => '']))->status);
-        $this->assertSame(422, $this->client->post('/features', $this->form(['system_id' => '2', 'app_id' => (string) $this->appId]))->status, '다른 서비스의 앱');
-        $this->assertSame(422, $this->client->post('/features', $this->form(['target_version' => '1.0 beta!']))->status);
-        $this->assertSame(422, $this->client->post('/features', $this->form(['status' => 'released']))->status, '처음부터 배포됨은 안 됨');
-        $this->assertSame(422, $this->client->post('/features', $this->form(['title' => '']))->status);
+        $this->assertSame(422, $this->client->post('/buildup', $this->form(['system_id' => '']))->status);
+        $this->assertSame(422, $this->client->post('/buildup', $this->form(['system_id' => '2', 'app_id' => (string) $this->appId]))->status, '다른 서비스의 앱');
+        $this->assertSame(422, $this->client->post('/buildup', $this->form(['target_version' => '1.0 beta!']))->status);
+        $this->assertSame(422, $this->client->post('/buildup', $this->form(['status' => 'released']))->status, '처음부터 배포됨은 안 됨');
+        $this->assertSame(422, $this->client->post('/buildup', $this->form(['title' => '']))->status);
         $this->assertSame(0, (int) $this->client->pdo()->query('SELECT COUNT(*) FROM features')->fetchColumn());
     }
 
@@ -76,22 +76,22 @@ final class FeaturesTest extends TestCase
         $this->as('operator');
         $id = $this->create(['target_version' => '1.4.0']);
 
-        $this->assertSame(422, $this->client->post("/features/{$id}/status", ['status' => 'released', 'released_version' => '1.4.0'])->status, '요청에서 바로 배포됨 불가');
-        $this->assertSame(422, $this->client->post("/features/{$id}/status", ['status' => 'requested'])->status, '같은 상태');
-        $this->assertSame(302, $this->client->post("/features/{$id}/status", ['status' => 'in_progress', 'note' => '착수'])->status);
-        $this->assertSame(422, $this->client->post("/features/{$id}/status", ['status' => 'released', 'released_version' => ''])->status, '배포 버전 필수');
+        $this->assertSame(422, $this->client->post("/buildup/{$id}/status", ['status' => 'released', 'released_version' => '1.4.0'])->status, '요청에서 바로 배포됨 불가');
+        $this->assertSame(422, $this->client->post("/buildup/{$id}/status", ['status' => 'requested'])->status, '같은 상태');
+        $this->assertSame(302, $this->client->post("/buildup/{$id}/status", ['status' => 'in_progress', 'note' => '착수'])->status);
+        $this->assertSame(422, $this->client->post("/buildup/{$id}/status", ['status' => 'released', 'released_version' => ''])->status, '배포 버전 필수');
 
-        $this->assertSame(302, $this->client->post("/features/{$id}/status", ['status' => 'released', 'released_version' => '1.4.1'])->status);
+        $this->assertSame(302, $this->client->post("/buildup/{$id}/status", ['status' => 'released', 'released_version' => '1.4.1'])->status);
         $row = $this->row($id);
         $this->assertSame(['released', '1.4.1'], [$row['status'], $row['released_version']]);
         $this->assertNotNull($row['released_at']);
 
-        $this->assertSame(302, $this->client->post("/features/{$id}/status", ['status' => 'in_progress', 'note' => '버그 수정'])->status, '배포 후 재작업');
+        $this->assertSame(302, $this->client->post("/buildup/{$id}/status", ['status' => 'in_progress', 'note' => '버그 수정'])->status, '배포 후 재작업');
         $row = $this->row($id);
         $this->assertSame([null, null], [$row['released_version'], $row['released_at']], '배포됨에서 벗어나면 배포 정보 지움');
 
-        $this->assertSame(302, $this->client->post("/features/{$id}/notes", ['note' => '고객사 확인 필요'])->status);
-        $this->assertSame(422, $this->client->post("/features/{$id}/notes", ['note' => '  '])->status);
+        $this->assertSame(302, $this->client->post("/buildup/{$id}/notes", ['note' => '고객사 확인 필요'])->status);
+        $this->assertSame(422, $this->client->post("/buildup/{$id}/notes", ['note' => '  '])->status);
 
         $events = $this->client->pdo()->query("SELECT type, from_value, to_value, note FROM feature_events WHERE feature_id = {$id} ORDER BY id")->fetchAll(\PDO::FETCH_NUM);
         $this->assertSame([
@@ -101,7 +101,7 @@ final class FeaturesTest extends TestCase
             ['status', 'released', 'in_progress', '버그 수정'],
             ['note', null, null, '고객사 확인 필요'],
         ], $events);
-        $page = $this->client->get("/features/{$id}")->body;
+        $page = $this->client->get("/buildup/{$id}")->body;
         $this->assertStringContainsString('요청 → 개발 중', $page);
         $this->assertStringContainsString('고객사 확인 필요', $page);
     }
@@ -110,12 +110,12 @@ final class FeaturesTest extends TestCase
     {
         $this->as('operator');
         $id = $this->create();
-        $this->assertSame(200, $this->client->get("/features/{$id}/edit")->status);
+        $this->assertSame(200, $this->client->get("/buildup/{$id}/edit")->status);
 
-        $this->client->post("/features/{$id}", $this->form());
+        $this->client->post("/buildup/{$id}", $this->form());
         $this->assertSame(0, $this->events($id, 'edit'), '바뀐 게 없으면 기록 없음');
 
-        $this->client->post("/features/{$id}", $this->form(['title' => '새 이름', 'app_id' => (string) $this->appId, 'assignee_user_id' => (string) $this->people['viewer']->id]));
+        $this->client->post("/buildup/{$id}", $this->form(['title' => '새 이름', 'app_id' => (string) $this->appId, 'assignee_user_id' => (string) $this->people['viewer']->id]));
         $note = (string) $this->client->pdo()->query("SELECT note FROM feature_events WHERE feature_id = {$id} AND type = 'edit'")->fetchColumn();
         $this->assertSame('앱, 이름, 담당자', $note);
         $this->assertSame('requested', $this->row($id)['status'], '수정으로는 상태가 바뀌지 않는다');
@@ -127,7 +127,7 @@ final class FeaturesTest extends TestCase
         $this->create(['title' => '서비스 기능']);
         $this->create(['title' => '앱 기능', 'app_id' => (string) $this->appId]);
         $done = $this->create(['title' => '끝난 기능', 'status' => 'in_progress']);
-        $this->client->post("/features/{$done}/status", ['status' => 'released', 'released_version' => '2.0.0']);
+        $this->client->post("/buildup/{$done}/status", ['status' => 'released', 'released_version' => '2.0.0']);
 
         $system = $this->client->get('/systems/' . $this->client->pdo()->query('SELECT code FROM systems WHERE id = 1')->fetchColumn())->body;
         $this->assertStringContainsString('서비스 기능', $system);
@@ -138,11 +138,11 @@ final class FeaturesTest extends TestCase
         $this->assertStringContainsString('앱 기능', $app);
         $this->assertStringNotContainsString('서비스 기능', $app);
 
-        $list = $this->client->get('/features')->body;
+        $list = $this->client->get('/buildup')->body;
         $this->assertStringNotContainsString('끝난 기능', $list, '기본 탭은 진행 중');
-        $this->assertStringContainsString('끝난 기능', $this->client->get('/features?status=released')->body);
-        $this->assertStringContainsString('끝난 기능', $this->client->get('/features?status=all')->body);
-        $this->assertStringNotContainsString('앱 기능', $this->client->get('/features?app=999')->body);
+        $this->assertStringContainsString('끝난 기능', $this->client->get('/buildup?status=released')->body);
+        $this->assertStringContainsString('끝난 기능', $this->client->get('/buildup?status=all')->body);
+        $this->assertStringNotContainsString('앱 기능', $this->client->get('/buildup?app=999')->body);
     }
 
     public function testRegisterFromMeetingAndSourceLinkVisibility(): void
@@ -160,38 +160,78 @@ final class FeaturesTest extends TestCase
         $meetingId = (int) basename($meeting->headers['Location']);
 
         $detail = $this->client->get("/meetings/{$meetingId}")->body;
-        $this->assertStringContainsString("/meetings/{$meetingId}/features/new", $detail);
+        $this->assertStringContainsString("/meetings/{$meetingId}/buildup/new", $detail);
 
-        $form = $this->client->get("/meetings/{$meetingId}/features/new?line=1");
+        $form = $this->client->get("/meetings/{$meetingId}/buildup/new?line=1");
         $this->assertSame(200, $form->status);
         $this->assertStringContainsString('value="알림 문구 수정"', $form->body, '결정 사항이 이름에 채워진다');
         $this->assertStringContainsString('결제 모듈 교체', $form->body);
 
-        $created = $this->client->post("/meetings/{$meetingId}/features", $this->form(['title' => '결제 모듈 교체', 'status' => 'planned']));
+        $created = $this->client->post("/meetings/{$meetingId}/buildup", $this->form(['title' => '결제 모듈 교체', 'status' => 'planned']));
         $featureId = (int) basename($created->headers['Location']);
         $this->assertSame($meetingId, (int) $this->row($featureId)['meeting_id']);
         $this->assertStringContainsString('결제 모듈 교체', $this->client->get("/meetings/{$meetingId}")->body, '회의록에 등록한 기능 표시');
-        $this->assertStringContainsString("href=\"/meetings/{$meetingId}\"", $this->client->get("/features/{$featureId}")->body);
+        $this->assertStringContainsString("href=\"/meetings/{$meetingId}\"", $this->client->get("/buildup/{$featureId}")->body);
 
         // 참석자(회의록 열람 가능): 링크
         $this->as('reader');
-        $page = $this->client->get("/features/{$featureId}")->body;
+        $page = $this->client->get("/buildup/{$featureId}")->body;
         $this->assertStringContainsString("href=\"/meetings/{$meetingId}\"", $page);
         $this->assertStringNotContainsString('비공개 기획 회의', $page, '회의 제목은 기능 화면에 넣지 않는다');
-        $this->assertSame(403, $this->client->get("/meetings/{$meetingId}/features/new")->status, '조회 역할은 기능 등록 불가');
+        $this->assertSame(403, $this->client->get("/meetings/{$meetingId}/buildup/new")->status, '조회 역할은 기능 등록 불가');
 
         // 회의록 권한은 있지만 참석자가 아님 / 회의록 권한 없음: 링크 없음
         foreach (['outsider', 'viewer'] as $name) {
             $this->as($name);
-            $page = $this->client->get("/features/{$featureId}")->body;
+            $page = $this->client->get("/buildup/{$featureId}")->body;
             $this->assertStringContainsString('회의에서 등록됨', $page, $name);
             $this->assertStringNotContainsString("href=\"/meetings/{$meetingId}\"", $page, $name);
         }
         $this->as('outsider');
-        $this->assertSame(404, $this->client->get("/meetings/{$meetingId}/features/new")->status, '볼 수 없는 회의에서는 등록 불가');
-        $this->assertSame(404, $this->client->post("/meetings/{$meetingId}/features", $this->form())->status);
+        $this->assertSame(404, $this->client->get("/meetings/{$meetingId}/buildup/new")->status, '볼 수 없는 회의에서는 등록 불가');
+        $this->assertSame(404, $this->client->post("/meetings/{$meetingId}/buildup", $this->form())->status);
         $this->as('viewer');
-        $this->assertSame(403, $this->client->get("/meetings/{$meetingId}/features/new")->status, '회의록 관문');
+        $this->assertSame(403, $this->client->get("/meetings/{$meetingId}/buildup/new")->status, '회의록 관문');
+    }
+
+    public function testDeleteNeedsConfirmationAndLeavesAuditTrail(): void
+    {
+        $this->as('operator');
+        $id = $this->create(['title' => '잘못 만든 항목']);
+        $this->client->post("/buildup/{$id}/notes", ['note' => '메모']);
+
+        $confirm = $this->client->get("/buildup/{$id}/delete");
+        $this->assertSame(200, $confirm->status);
+        $this->assertStringContainsString('되돌릴 수 없습니다', $confirm->body);
+        $this->assertSame("/buildup/{$id}/delete", $this->client->post("/buildup/{$id}/delete")->headers['Location'], '확인 없이 보내면 확인 화면으로');
+        $this->assertNotFalse($this->client->pdo()->query("SELECT 1 FROM features WHERE id = {$id}")->fetchColumn());
+
+        $this->assertSame('/buildup', $this->client->post("/buildup/{$id}/delete", ['confirm' => 'delete'])->headers['Location']);
+        $this->assertFalse($this->client->pdo()->query("SELECT 1 FROM features WHERE id = {$id}")->fetchColumn());
+        $this->assertSame(0, (int) $this->client->pdo()->query("SELECT COUNT(*) FROM feature_events WHERE feature_id = {$id}")->fetchColumn(), '타임라인도 지움');
+        $log = $this->client->pdo()->query("SELECT user_id, detail FROM audit_logs WHERE action = 'feature.delete' AND target_id = {$id}")->fetch();
+        $this->assertSame($this->people['operator']->id, (int) $log['user_id']);
+        $this->assertSame('잘못 만든 항목', json_decode($log['detail'], true)['title']);
+        $this->assertSame(404, $this->client->get("/buildup/{$id}")->status);
+
+        $other = $this->create();
+        $this->as('viewer');
+        $this->assertSame(403, $this->client->get("/buildup/{$other}/delete")->status);
+        $this->assertSame(403, $this->client->post("/buildup/{$other}/delete", ['confirm' => 'delete'])->status);
+    }
+
+    public function testRenamedMenuAndOldAddressesRedirect(): void
+    {
+        $this->as('operator');
+        $id = $this->create();
+        $page = $this->client->get('/buildup');
+        $this->assertStringContainsString('빌드업', $page->body);
+        $this->assertStringContainsString('href="/buildup">빌드업</a>', $page->body, '사이드바 메뉴');
+
+        $old = $this->client->get('/features?status=all&system=1');
+        $this->assertSame(301, $old->status);
+        $this->assertSame('/buildup?status=all&system=1', $old->headers['Location']);
+        $this->assertSame("/buildup/{$id}", $this->client->get("/features/{$id}")->headers['Location']);
     }
 
     private function as(string $name): void
@@ -229,7 +269,7 @@ final class FeaturesTest extends TestCase
      */
     private function create(array $override = []): int
     {
-        $response = $this->client->post('/features', $this->form($override));
+        $response = $this->client->post('/buildup', $this->form($override));
         $this->assertSame(302, $response->status, '기능 등록');
 
         return (int) basename($response->headers['Location']);

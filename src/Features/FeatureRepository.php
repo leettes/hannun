@@ -9,7 +9,8 @@ use Closure;
 use PDO;
 
 /**
- * 기능 추적: 서비스·앱 단위 기능을 요청 → 확정 → 개발 → 배포까지. 지우지 않고 '취소'로 둔다.
+ * 빌드업(코드 이름 feature): 서비스·앱 단위 개발 건을 요청 → 확정 → 개발 → 배포까지.
+ * 끝내지 않을 건은 '취소'로 두고, 잘못 만든 건은 삭제한다 (타임라인도 같이 지우고 감사 로그에 남긴다).
  * 모든 변경은 feature_events 타임라인에 남긴다.
  */
 final class FeatureRepository
@@ -34,6 +35,16 @@ final class FeatureRepository
         'on_hold' => ['planned', 'in_progress', 'dropped'],
         'released' => ['in_progress'],      // 배포 후 재작업
         'dropped' => ['requested'],         // 다시 요청
+    ];
+
+    /** 회의 할 일에서 올린 항목: 빌드업 상태 → 할 일 상태 (MeetingTaskRepository::STATUSES) */
+    public const TASK_STATUS = [
+        'requested' => 'todo',
+        'planned' => 'todo',
+        'in_progress' => 'doing',
+        'released' => 'done',
+        'on_hold' => 'hold',
+        'dropped' => 'hold',
     ];
 
     /** 새로 등록할 때 고를 수 있는 상태 */
@@ -161,21 +172,21 @@ final class FeatureRepository
     /**
      * @param array{system_id: int, app_id: ?int, title: string, description: ?string, target_version: ?string, assignee_user_id: ?int, status: string} $values
      */
-    public function create(array $values, int $userId, ?int $meetingId = null, ?int $incidentId = null): int
+    public function create(array $values, int $userId, ?int $meetingId = null, ?int $incidentId = null, ?int $meetingTaskId = null): int
     {
         $pdo = ($this->connection)();
         $pdo->beginTransaction();
         try {
             $now = Database::now();
             $pdo->prepare(
-                'INSERT INTO features (system_id, app_id, title, description, status, target_version, assignee_user_id, meeting_id, incident_id, created_by_user_id, created_at, updated_at)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+                'INSERT INTO features (system_id, app_id, title, description, status, target_version, assignee_user_id, meeting_id, incident_id, meeting_task_id, created_by_user_id, created_at, updated_at)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
             )->execute([
                 $values['system_id'], $values['app_id'], $values['title'], $values['description'], $values['status'],
-                $values['target_version'], $values['assignee_user_id'], $meetingId, $incidentId, $userId, $now, $now,
+                $values['target_version'], $values['assignee_user_id'], $meetingId, $incidentId, $meetingTaskId, $userId, $now, $now,
             ]);
             $id = (int) $pdo->lastInsertId();
-            $this->event($pdo, $id, $userId, 'created', null, $values['status'], $meetingId !== null ? '회의에서 등록' : null);
+            $this->event($pdo, $id, $userId, 'created', null, $values['status'], $meetingTaskId !== null ? '회의 할 일에서 올림' : ($meetingId !== null ? '회의에서 등록' : null));
             $pdo->commit();
         } catch (\Throwable $e) {
             $pdo->rollBack();
@@ -224,6 +235,23 @@ final class FeatureRepository
             $pdo->prepare('UPDATE features SET status = ?, released_version = ?, released_at = ?, updated_at = ? WHERE id = ?')
                 ->execute([$to, $released ? $releasedVersion : null, $released ? Database::now() : null, Database::now(), $id]);
             $this->event($pdo, $id, $userId, 'status', $from, $to, trim(($released ? "v{$releasedVersion} " : '') . ($note ?? '')) ?: null);
+            $pdo->commit();
+        } catch (\Throwable $e) {
+            $pdo->rollBack();
+            throw $e;
+        }
+    }
+
+    /**
+     * 삭제: 타임라인까지 지운다 (되돌릴 수 없다)
+     */
+    public function delete(int $id): void
+    {
+        $pdo = ($this->connection)();
+        $pdo->beginTransaction();
+        try {
+            $pdo->prepare('DELETE FROM feature_events WHERE feature_id = ?')->execute([$id]);
+            $pdo->prepare('DELETE FROM features WHERE id = ?')->execute([$id]);
             $pdo->commit();
         } catch (\Throwable $e) {
             $pdo->rollBack();

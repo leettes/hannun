@@ -97,6 +97,9 @@ final class MeetingTaskController extends Controller
         if (!$me->canWriteMeetings()) {
             return $this->forbidden();
         }
+        if ($task['buildup_id'] !== null) {
+            return $this->detail($request, $task, $me, ['status' => '빌드업에 올린 할 일입니다. 상태는 빌드업에서 바꿉니다.']);
+        }
         $to = $request->input('status') ?? '';
         if (!isset(MeetingTaskRepository::STATUSES[$to])) {
             return $this->detail($request, $task, $me, ['status' => '상태를 고르세요.']);

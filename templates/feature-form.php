@@ -5,6 +5,7 @@ use App\Monitoring\AppRegistry;
 /**
  * @var ?array<string, mixed> $feature 수정 대상 (새로 등록하면 null)
  * @var ?array{id: int, title: string} $meeting 회의에서 등록할 때
+ * @var ?array{id: int, item: string, service: string} $task 회의 할 일에서 올릴 때
  * @var list<string> $decisionLines
  * @var array{system_id: ?int, app_id: ?int, title: string, description: string, target_version: string, assignee_user_id: ?int, status: string} $values
  * @var array<string, string> $errors
@@ -16,25 +17,28 @@ $error = static fn (string $field): string => isset($errors[$field])
     ? '<span class="field-error">' . e($errors[$field]) . '</span>'
     : '';
 $systemNames = array_column($systems, 'name', 'id');
-$action = $meeting !== null ? '/meetings/' . $meeting['id'] . '/features' : ($isNew ? '/features' : '/features/' . (int) $feature['id']);
-$cancel = $meeting !== null ? '/meetings/' . $meeting['id'] : ($isNew ? '/features' : '/features/' . (int) $feature['id']);
+$action = $meeting !== null ? '/meetings/' . $meeting['id'] . '/buildup' : ($isNew ? '/buildup' : '/buildup/' . (int) $feature['id']);
+$cancel = $meeting !== null ? '/meetings/' . $meeting['id'] : ($isNew ? '/buildup' : '/buildup/' . (int) $feature['id']);
 ?>
 <?= $this->partial('partials/page-head', [
-    'crumb' => $meeting !== null ? e($meeting['title']) : ($isNew ? '기능' : e((string) $feature['title'])),
+    'crumb' => $meeting !== null ? e($meeting['title']) : ($isNew ? '빌드업' : e((string) $feature['title'])),
     'crumbHref' => $cancel,
-    'heading' => $isNew ? ($meeting !== null ? '회의에서 기능 등록' : '기능 등록') : '기능 수정',
-    'sub' => $meeting !== null ? '이 회의를 출처로 남깁니다. 출처 링크는 회의록을 볼 수 있는 사람에게만 보입니다.' : null,
+    'heading' => $isNew ? ($meeting !== null ? '회의 결정을 빌드업에 올리기' : '빌드업 등록') : '빌드업 수정',
+    'sub' => $meeting !== null ? '이 회의를 출처로 남깁니다. 출처 링크는 회의록을 볼 수 있는 사람에게만 보입니다.' . ($task !== null ? ' <strong>빌드업은 모든 역할이 봅니다.</strong> 회의록의 민감한 내용은 이름·설명에서 빼세요.' : '') : null,
 ]) ?>
 
-<?php if ($meeting !== null && $decisionLines !== []): ?>
+<?php if ($task !== null): ?>
+    <div class="alert alert-info narrow" role="status">회의 할 일 <strong><?= e($task['item']) ?></strong> <span class="muted">(<?= e($task['service']) ?>)</span> 을(를) 빌드업에 올립니다. 올린 뒤에는 할 일 상태가 빌드업 상태를 따라갑니다.</div>
+<?php endif ?>
+<?php if ($meeting !== null && $decisionLines !== [] && $task === null): ?>
     <section class="card">
         <h2 class="card-title">결정 사항에서 고르기</h2>
         <ul class="decision-picks">
             <?php foreach ($decisionLines as $i => $line): ?>
-                <li><a href="/meetings/<?= (int) $meeting['id'] ?>/features/new?line=<?= $i ?>"><?= e($line) ?></a></li>
+                <li><a href="/meetings/<?= (int) $meeting['id'] ?>/buildup/new?line=<?= $i ?>"><?= e($line) ?></a></li>
             <?php endforeach ?>
         </ul>
-        <p class="muted small">누르면 기능 이름에 채워집니다.</p>
+        <p class="muted small">누르면 이름에 채워집니다.</p>
     </section>
 <?php endif ?>
 
@@ -44,8 +48,9 @@ $cancel = $meeting !== null ? '/meetings/' . $meeting['id'] : ($isNew ? '/featur
     <?php endif ?>
     <form class="form" method="post" action="<?= e($action) ?>">
         <input type="hidden" name="_token" value="<?= e($csrfToken) ?>">
+        <?php if ($task !== null): ?><input type="hidden" name="meeting_task_id" value="<?= $task['id'] ?>"><?php endif ?>
         <label>
-            <span>기능 이름</span>
+            <span>이름</span>
             <input type="text" name="title" value="<?= e($values['title']) ?>" maxlength="200" required>
             <?= $error('title') ?>
         </label>
@@ -61,7 +66,7 @@ $cancel = $meeting !== null ? '/meetings/' . $meeting['id'] : ($isNew ? '/featur
                 <?= $error('system_id') ?>
             </label>
             <label>
-                <span>앱 <span class="muted small">(앱 단위 기능일 때)</span></span>
+                <span>앱 <span class="muted small">(앱 단위일 때)</span></span>
                 <select name="app_id">
                     <option value="">서비스 전체</option>
                     <?php foreach ($apps as $a): ?>

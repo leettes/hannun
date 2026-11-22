@@ -140,6 +140,7 @@ if ($canWrite) {
                                         <div class="task-item"><a href="/meetings/tasks/<?= (int) $t['id'] ?>"><?= e((string) $t['item']) ?></a></div>
                                         <div class="task-do"><?= e((string) $t['task']) ?></div>
                                         <?php if (($t['note'] ?? '') !== ''): ?><div class="task-note"><?= e((string) $t['note']) ?></div><?php endif ?>
+                                        <?= $this->partial('partials/task-controls', ['t' => $t, 'canWrite' => $canWrite, 'staff' => $staff, 'back' => $backUrl, 'part' => 'promote']) ?>
                                     </td>
                                     <td><?= $this->partial('partials/task-controls', ['t' => $t, 'canWrite' => $canWrite, 'staff' => $staff, 'back' => $backUrl, 'part' => 'person']) ?></td>
                                     <td><?= $this->partial('partials/task-controls', ['t' => $t, 'canWrite' => $canWrite, 'staff' => $staff, 'back' => $backUrl, 'part' => 'status']) ?></td>

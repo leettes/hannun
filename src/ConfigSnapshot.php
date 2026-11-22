@@ -27,10 +27,12 @@ final class ConfigSnapshot
     public const TABLES = [
         'companies' => [],
         'aws_accounts' => [],
-        'users' => ['last_login_at', 'meeting_access', 'totp_secret', 'totp_enabled_at', 'totp_last_step'],
+        // updated_at: 로그인(last_login_at 갱신) 때 트리거가 함께 바꿔 파일이 매번 바뀌므로 뺀다
+        'users' => ['last_login_at', 'updated_at', 'meeting_access', 'totp_secret', 'totp_enabled_at', 'totp_last_step'],
         'systems' => [],
         'system_owners' => [],
-        'resources' => ['current_status', 'last_checked_at', 'resolved_ips', 'resolved_at', 'domain_info'],
+        // updated_at: 점검 때 current_status 를 바꾸면 트리거가 함께 갱신해 파일이 매번 바뀌므로 뺀다
+        'resources' => ['current_status', 'last_checked_at', 'resolved_ips', 'resolved_at', 'domain_info', 'updated_at'],
         'app_store_accounts' => [],
         'apps' => ['store_info', 'checked_at', 'store_error', 'icon_checked_at', 'icon_error'],
         'domain_overrides' => [],

@@ -50,7 +50,7 @@
                 <?php endif ?>
             </a>
             <a class="nav-item<?= $active === 'architecture' ? ' is-active' : '' ?>" href="/architecture">시스템 구성도</a>
-            <a class="nav-item<?= $active === 'features' ? ' is-active' : '' ?>" href="/features">기능</a>
+            <a class="nav-item<?= $active === 'features' ? ' is-active' : '' ?>" href="/buildup">빌드업</a>
             <?php if ($currentUser?->canReadMeetings()): ?>
                 <a class="nav-item<?= $active === 'meetings' ? ' is-active' : '' ?>" href="/meetings">회의록</a>
             <?php endif ?>

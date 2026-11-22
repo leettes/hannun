@@ -152,6 +152,23 @@ final class MeetingTaskRepository
         return $id;
     }
 
+    /**
+     * 빌드업에 올린 할 일: 빌드업 상태를 따라간다 (바뀔 때만 타임라인에 '빌드업 연동')
+     */
+    public function syncFromBuildup(int $id, string $to, int $userId): void
+    {
+        $statement = ($this->connection)()->prepare('SELECT status FROM meeting_tasks WHERE id = ?');
+        $statement->execute([$id]);
+        $from = $statement->fetchColumn();
+        if ($from === false || $from === $to) {
+            return;
+        }
+        ($this->connection)()
+            ->prepare('UPDATE meeting_tasks SET status = ?, done_at = ?, updated_at = ? WHERE id = ?')
+            ->execute([$to, $to === 'done' ? Database::now() : null, Database::now(), $id]);
+        $this->event($id, $userId, 'status', (string) $from, $to, '빌드업 연동');
+    }
+
     public function changeStatus(int $id, string $from, string $to, int $userId): void
     {
         ($this->connection)()
@@ -255,12 +272,14 @@ final class MeetingTaskRepository
             "SELECT t.id, t.meeting_id, t.service, t.item_enc, t.task_enc, t.note_enc, t.status, t.done_at, t.sort,
                     t.assignee_user_id, t.assignee_label, t.created_at, t.updated_at,
                     m.held_at AS meeting_held_at, m.title AS meeting_title, m.subtitle AS meeting_subtitle, m.author_user_id AS meeting_author_id,
-                    COALESCE(au.name, pu.name) AS assignee_name, COALESCE(au.id, pu.id) AS assignee_id
+                    COALESCE(au.name, pu.name) AS assignee_name, COALESCE(au.id, pu.id) AS assignee_id,
+                    bf.id AS buildup_id, bf.status AS buildup_status
              FROM meeting_tasks t
              JOIN meetings m ON m.id = t.meeting_id
              LEFT JOIN users au ON au.id = t.assignee_user_id
              LEFT JOIN meeting_participants p ON t.assignee_user_id IS NULL AND p.meeting_id = t.meeting_id AND p.label = t.assignee_label
              LEFT JOIN users pu ON pu.id = p.user_id
+             LEFT JOIN features bf ON bf.meeting_task_id = t.id
              {$tail}"
         );
         $statement->execute($params);

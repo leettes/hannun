@@ -171,13 +171,13 @@ if (!$deleted) {
 
         <section class="section">
             <div class="section-head">
-                <h2>이 회의에서 등록한 기능</h2>
+                <h2>이 회의에서 올린 빌드업</h2>
                 <?php if ($canAddFeature): ?>
-                    <span class="section-head-aside"><a href="/meetings/<?= $id ?>/features/new">결정 사항을 기능으로 등록</a></span>
+                    <span class="section-head-aside"><a href="/meetings/<?= $id ?>/buildup/new">결정 사항을 빌드업에 올리기</a></span>
                 <?php endif ?>
             </div>
             <div class="card card-flush">
-                <?= $this->partial('partials/feature-list', ['features' => $features, 'showSystem' => true, 'empty' => '등록한 기능이 없습니다. 개발이 필요한 결정은 기능으로 등록해 배포까지 추적합니다.']) ?>
+                <?= $this->partial('partials/feature-list', ['features' => $features, 'showSystem' => true, 'empty' => '올린 빌드업이 없습니다. 개발이 필요한 결정은 빌드업에 올려 배포까지 추적합니다.']) ?>
             </div>
         </section>
     </div>

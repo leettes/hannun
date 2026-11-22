@@ -37,6 +37,7 @@ $serviceSelect = static function (string $name, string $selected) use ($services
                     <div class="t-item"><a href="/meetings/tasks/<?= (int) $t['id'] ?>"><?= e((string) $t['item']) ?></a></div>
                     <div class="t-do"><?= e((string) $t['task']) ?></div>
                     <?php if (($t['note'] ?? '') !== ''): ?><div class="task-note"><?= e((string) $t['note']) ?></div><?php endif ?>
+                    <?= $this->partial('partials/task-controls', ['t' => $t, 'canWrite' => $canWrite, 'staff' => $staff, 'back' => $back, 'part' => 'promote', 'csrfToken' => $csrfToken]) ?>
                 </div>
                 <span class="t-who"><?= $this->partial('partials/task-controls', ['t' => $t, 'canWrite' => $canWrite, 'staff' => $staff, 'back' => $back, 'part' => 'person', 'csrfToken' => $csrfToken]) ?></span>
                 <span><?= $this->partial('partials/task-controls', ['t' => $t, 'canWrite' => $canWrite, 'staff' => $staff, 'back' => $back, 'part' => 'status', 'csrfToken' => $csrfToken]) ?></span>

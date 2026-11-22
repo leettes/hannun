@@ -4,7 +4,7 @@ use App\Monitoring\Thresholds;
 /**
  * @var array $system @var list<array> $incidents @var bool $showAwsResources
  * @var App\Monitoring\TimeRange $range @var list<array> $responseTimes @var list<array<string, mixed>> $apps
- * @var list<array<string, mixed>> $features 진행 중 기능
+ * @var list<array<string, mixed>> $features 진행 중 빌드업
  */
 $s = $system;
 ?>
@@ -169,16 +169,16 @@ $s = $system;
 
 <section class="section">
     <div class="section-head">
-        <h2>진행 중 기능</h2>
+        <h2>진행 중 빌드업</h2>
         <span class="section-head-aside">
-            <a href="/features?system=<?= (int) $system['id'] ?>">전체 기능</a>
+            <a href="/buildup?system=<?= (int) $system['id'] ?>">전체 빌드업</a>
             <?php if (isset($currentUser) && $currentUser->can('operator')): ?>
-                · <a href="/features/new?system=<?= (int) $system['id'] ?>">기능 등록</a>
+                · <a href="/buildup/new?system=<?= (int) $system['id'] ?>">빌드업 등록</a>
             <?php endif ?>
         </span>
     </div>
     <div class="card card-flush">
-        <?= $this->partial('partials/feature-list', ['features' => $features, 'showSystem' => false, 'empty' => '진행 중인 기능이 없습니다.']) ?>
+        <?= $this->partial('partials/feature-list', ['features' => $features, 'showSystem' => false, 'empty' => '진행 중인 빌드업이 없습니다.']) ?>
     </div>
 </section>
 

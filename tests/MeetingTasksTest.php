@@ -93,6 +93,46 @@ final class MeetingTasksTest extends TestCase
         $this->assertStringNotContainsString('data-autosubmit', $this->client->get('/meetings')->body);
     }
 
+    public function testTaskPromotedToBuildupFollowsItsStatus(): void
+    {
+        $this->as('writer'); // 운영자 + 회의록 열람·작성
+        $id = $this->meeting(['visibility' => 'all']);
+        $this->client->post("/meetings/{$id}/tasks/from-decisions", ['service' => '코이']);
+        $taskId = (int) $this->client->pdo()->query("SELECT id FROM meeting_tasks WHERE meeting_id = {$id} ORDER BY sort LIMIT 1")->fetchColumn();
+
+        $this->assertStringContainsString("/meetings/{$id}/buildup/new?task={$taskId}", $this->client->get('/meetings')->body, '올리기 링크');
+        $form = $this->client->get("/meetings/{$id}/buildup/new?task={$taskId}");
+        $this->assertSame(200, $form->status);
+        $this->assertStringContainsString('value="번역 언어값"', $form->body, '항목이 이름으로');
+        $this->assertStringContainsString('DB에 저장된 번역 요청 언어 확인</textarea>', $form->body, '할 일이 설명으로');
+        $this->assertMatchesRegularExpression('/<option value="\d+" selected>코이<\/option>/', $form->body, '서비스 이름이 같은 시스템');
+        $this->assertStringContainsString('모든 역할이 봅니다', $form->body);
+
+        $systemId = (int) $this->client->pdo()->query("SELECT id FROM systems WHERE name = '코이'")->fetchColumn();
+        $created = $this->client->post("/meetings/{$id}/buildup", [
+            'meeting_task_id' => (string) $taskId, 'title' => '번역 언어값', 'system_id' => (string) $systemId, 'app_id' => '',
+            'status' => 'planned', 'target_version' => '', 'assignee_user_id' => '', 'description' => '',
+        ]);
+        $featureId = (int) basename($created->headers['Location']);
+        $this->assertSame([$taskId, $id], array_map('intval', $this->client->pdo()->query("SELECT meeting_task_id, meeting_id FROM features WHERE id = {$featureId}")->fetch(\PDO::FETCH_NUM)));
+        $this->assertStringContainsString('빌드업 · 확정', $this->client->get('/meetings')->body, '할 일 표에 빌드업 상태');
+        $this->assertSame(404, $this->client->get("/meetings/{$id}/buildup/new?task={$taskId}")->status, '한 번만 올린다');
+
+        $this->assertSame(422, $this->client->post("/meetings/tasks/{$taskId}/status", ['status' => 'done'])->status, '상태는 빌드업에서');
+        $this->client->post("/buildup/{$featureId}/status", ['status' => 'in_progress']);
+        $this->assertSame('doing', $this->taskStatus($taskId));
+        $this->client->post("/buildup/{$featureId}/status", ['status' => 'released', 'released_version' => '1.2.0']);
+        $this->assertSame('done', $this->taskStatus($taskId));
+        $this->assertStringContainsString('빌드업 연동', $this->client->get("/meetings/tasks/{$taskId}")->body);
+
+        // 다른 회의의 할 일 번호를 끼워 넣을 수 없다
+        $otherMeeting = $this->meeting(['visibility' => 'all', 'title' => '다른 회의']);
+        $this->assertSame(404, $this->client->get("/meetings/{$otherMeeting}/buildup/new?task={$taskId}")->status);
+
+        $this->as('reader'); // 회의록 열람 권한만: 올리기 링크 없음
+        $this->assertStringNotContainsString('/buildup/new?task=', $this->client->get('/meetings')->body);
+    }
+
     public function testTasksFollowMeetingVisibility(): void
     {
         $this->as('writer');
@@ -252,6 +292,11 @@ final class MeetingTasksTest extends TestCase
         $this->assertSame(302, $response->status, '녹취로 작성');
 
         return (int) basename($response->headers['Location']);
+    }
+
+    private function taskStatus(int $id): string
+    {
+        return (string) $this->client->pdo()->query("SELECT status FROM meeting_tasks WHERE id = {$id}")->fetchColumn();
     }
 
     private function crypto(): \App\Security\Crypto

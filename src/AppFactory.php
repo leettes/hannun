@@ -109,7 +109,7 @@ final class AppFactory
         ?AuditLog $audit = null,
         ?Closure $connection = null,
     ): App {
-        // 따로 주입하지 않는 저장소(회의록·기능)가 쓸 DB 연결. 테스트에서는 메모리 DB
+        // 따로 주입하지 않는 저장소(회의록·빌드업)가 쓸 DB 연결. 테스트에서는 메모리 DB
         $db = $connection ?? Database::connection(...);
         $view = new View($root . '/templates');
         // EC2·RDS 화면은 AWS 연동 단계 전까지 숨긴다 (.env AWS_RESOURCES=true 로 표시)
@@ -143,7 +143,7 @@ final class AppFactory
             AuditLogController::class => new AuditLogController($view, $data, $audit, $users),
             MeetingController::class => new MeetingController($view, $data, $meetings, $users, $audit, $features, $meetingTasks, $twoFactor, ($config['meeting_idle_minutes'] ?? 15) * 60),
             MeetingTaskController::class => new MeetingTaskController($view, $data, $meetingTasks, $users),
-            FeatureController::class => new FeatureController($view, $data, $features, $meetings, $users),
+            FeatureController::class => new FeatureController($view, $data, $features, $meetings, $users, $audit, $meetingTasks),
             ProfileController::class => new ProfileController($view, $data, $users),
             SystemAdminController::class => new SystemAdminController($view, $data, $registry, $users, $detectHttpKind ?? HttpKindDetector::detect(...)),
             AwsAccountController::class => new AwsAccountController($view, $data, $registry),
@@ -204,16 +204,21 @@ final class AppFactory
         $router->post('/meetings/{id}/participants/{participant}', [MeetingController::class, 'linkParticipant']);
         $router->post('/meetings/{id}/tasks', [MeetingController::class, 'addTask']);
         $router->post('/meetings/{id}/tasks/from-decisions', [MeetingController::class, 'registerTasks']);
-        $router->get('/meetings/{id}/features/new', [FeatureController::class, 'createFromMeeting'], 'operator');
-        $router->post('/meetings/{id}/features', [FeatureController::class, 'storeFromMeeting'], 'operator');
-        $router->get('/features', [FeatureController::class, 'index']);
-        $router->get('/features/new', [FeatureController::class, 'create'], 'operator');
-        $router->post('/features', [FeatureController::class, 'store'], 'operator');
-        $router->get('/features/{id}', [FeatureController::class, 'show']);
-        $router->get('/features/{id}/edit', [FeatureController::class, 'edit'], 'operator');
-        $router->post('/features/{id}', [FeatureController::class, 'update'], 'operator');
-        $router->post('/features/{id}/status', [FeatureController::class, 'changeStatus'], 'operator');
-        $router->post('/features/{id}/notes', [FeatureController::class, 'addNote'], 'operator');
+        $router->get('/meetings/{id}/buildup/new', [FeatureController::class, 'createFromMeeting'], 'operator');
+        $router->post('/meetings/{id}/buildup', [FeatureController::class, 'storeFromMeeting'], 'operator');
+        $router->get('/buildup', [FeatureController::class, 'index']);
+        $router->get('/buildup/new', [FeatureController::class, 'create'], 'operator');
+        $router->post('/buildup', [FeatureController::class, 'store'], 'operator');
+        $router->get('/buildup/{id}', [FeatureController::class, 'show']);
+        $router->get('/buildup/{id}/edit', [FeatureController::class, 'edit'], 'operator');
+        $router->post('/buildup/{id}', [FeatureController::class, 'update'], 'operator');
+        $router->post('/buildup/{id}/status', [FeatureController::class, 'changeStatus'], 'operator');
+        $router->post('/buildup/{id}/notes', [FeatureController::class, 'addNote'], 'operator');
+        $router->get('/buildup/{id}/delete', [FeatureController::class, 'confirmDelete'], 'operator');
+        $router->post('/buildup/{id}/delete', [FeatureController::class, 'destroy'], 'operator');
+        // 예전 주소(/features)로 들어오면 새 주소로
+        $router->get('/features', static fn (Request $r): Response => Response::redirect('/buildup' . ($r->query === [] ? '' : '?' . http_build_query($r->query)), 301));
+        $router->get('/features/{id}', static fn (Request $r, string $id): Response => Response::redirect('/buildup/' . rawurlencode($id), 301));
         $router->get(self::HEALTH_PATH, [HealthController::class, 'index']);
         $router->post(self::ALERT_PATHS[0], [AlertController::class, 'uptimeKuma']);
         $router->post(self::ALERT_PATHS[1], [AlertController::class, 'sns']);
